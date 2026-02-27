@@ -1,14 +1,19 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct ContentView: View {
     @State private var isLoggedIn: Bool = false
+    @State private var isProfileComplete: Bool = true // 기본값을 true로 두고 체크 후 변경
     @State private var showLoginSheet: Bool = false
+    @State private var isLoading: Bool = true
     
     var body: some View {
         Group {
-            if isLoggedIn {
-                MainView()
+            if isLoading {
+                ProgressView() // 로그인 상태 확인 중
+            } else if isLoggedIn {
+                MainView(isProfileComplete: isProfileComplete)
             } else {
                 NavigationStack {
                     ZStack {
@@ -68,25 +73,43 @@ struct ContentView: View {
                 }
                 .sheet(isPresented: $showLoginSheet) {
                     LoginView {
-                        // 성공 시 콜백
-                        isLoggedIn = true
+                        checkUserProfile()
                     }
                 }
             }
         }
         .onAppear {
-            // 앱 실행 시 로그인 상태 확인
-            if Auth.auth().currentUser != nil {
+            checkLoginStatus()
+        }
+    }
+    
+    private func checkLoginStatus() {
+        _ = Auth.auth().addStateDidChangeListener { _, user in
+            if user != nil {
                 isLoggedIn = true
+                checkUserProfile()
+            } else {
+                isLoggedIn = false
+                isProfileComplete = false
+                isLoading = false
             }
-            
-            // 실시간 로그아웃 체크 등 상태 변경 감지
-            Auth.auth().addStateDidChangeListener { _, user in
-                if user == nil {
-                    isLoggedIn = false
-                } else {
-                    isLoggedIn = true
-                }
+        }
+    }
+    
+    private func checkUserProfile() {
+        guard let uid = Auth.auth().currentUser?.uid else { 
+            isLoading = false
+            return 
+        }
+        
+        let db = Firestore.firestore()
+        // 실시간 감시(addSnapshotListener)를 사용하여 ProfileSetupView에서 완료 버튼을 누르자마자 메인으로 전환되게 합니다.
+        db.collection("users").document(uid).addSnapshotListener { snapshot, error in
+            isLoading = false
+            if let data = snapshot?.data() {
+                self.isProfileComplete = data["isProfileComplete"] as? Bool ?? false
+            } else {
+                self.isProfileComplete = false
             }
         }
     }
