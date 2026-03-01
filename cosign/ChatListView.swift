@@ -26,136 +26,22 @@ struct ChatListView: View {
         NavigationStack {
             ZStack {
                 VStack(spacing: 0) {
-                    // 상단 헤더
-                    HStack {
-                        Text("Chats")
-                            .font(.system(size: 24, weight: .bold))
-                        Spacer()
-                        HStack(spacing: 20) {
-                            Image(systemName: "magnifyingglass")
-                            Image(systemName: "person.badge.plus")
-                            Image(systemName: "music.note")
-                            Image(systemName: "gearshape")
-                        }
-                        .font(.system(size: 20))
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 15)
-                    
-                    // 메뉴 탭
-                    HStack(spacing: 25) {
-                        tabButton(title: "Pending Signs", tag: 0)
-                        tabButton(title: "Co-Sign", tag: 1)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
+                    headerView
+                    menuTabsView
                     
                     if selectedMenu == 0 {
-                        // 1. Pending Signs 섹션
-                        if pendingUsers.isEmpty && receivedUsers.isEmpty {
-                            emptyStateView(icon: "paperplane", text: "No pending signs.\nTry to find your Co-sign!")
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            List {
-                                if !pendingUsers.isEmpty {
-                                    Section(header: Text("Sign Sent").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
-                                        ForEach(0..<pendingUsers.count, id: \.self) { index in
-                                            PendingSignRow(me: currentUserData, other: pendingUsers[index], type: .sent)
-                                                .listRowInsets(EdgeInsets())
-                                                .listRowSeparator(.hidden)
-                                                .onTapGesture {
-                                                    selectedPendingUser = pendingUsers[index]
-                                                    selectedIsReceived = false
-                                                    showPendingDetail = true
-                                                }
-                                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                                    Button(role: .destructive) {
-                                                        userToProcess = pendingUsers[index]
-                                                        showCancelAlert = true
-                                                    } label: {
-                                                        Label("Cancel", systemImage: "xmark.circle.fill")
-                                                    }
-                                                }
-                                        }
-                                    }
-                                }
-                                
-                                if !receivedUsers.isEmpty {
-                                    Section(header: Text("Sign Received").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
-                                        ForEach(0..<receivedUsers.count, id: \.self) { index in
-                                            PendingSignRow(me: currentUserData, other: receivedUsers[index], type: .received)
-                                                .listRowInsets(EdgeInsets())
-                                                .listRowSeparator(.hidden)
-                                                .onTapGesture {
-                                                    selectedPendingUser = receivedUsers[index]
-                                                    selectedIsReceived = true
-                                                    showPendingDetail = true
-                                                }
-                                        }
-                                    }
-                                }
-                            }
-                            .listStyle(PlainListStyle())
-                            .background(Color.white)
-                        }
+                        pendingSignsView
                     } else {
-                        // 2. Co-Sign 섹션
-                        ScrollView {
-                            VStack(spacing: 0) {
-                                if isLoading {
-                                    ProgressView().padding(.top, 50)
-                                } else if matchedUsers.isEmpty {
-                                    emptyStateView(icon: "bubble.left.and.bubble.right", text: "No active chats.\nBoth sides must send signs!")
-                                } else {
-                                    ForEach(0..<matchedUsers.count, id: \.self) { index in
-                                        NavigationLink(destination: ChatDetailView(otherUser: matchedUsers[index])) {
-                                            ChatRow(user: matchedUsers[index])
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                        
-                                        if index < matchedUsers.count - 1 {
-                                            Divider().padding(.horizontal, 20)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        coSignView
                     }
                 }
                 
-                // 프로필 팝업 오버레이
-                if showPendingDetail, let other = selectedPendingUser {
-                    PendingProfileOverlay(
-                        user: other, 
-                        isShowing: $showPendingDetail,
-                        isReceived: selectedIsReceived,
-                        onSendSign: {
-                            userToProcess = other
-                            if mySignBalance >= 100 {
-                                showAcceptAlert = true
-                            } else {
-                                showInsufficientSignsAlert = true
-                            }
-                        }
-                    )
-                }
-                
-                // 사인 전송 확인 커스텀 오버레이 (MainView와 동일한 디자인 및 표현)
-                if showAcceptAlert {
-                    sendSignConfirmationOverlay
-                }
-                
-                // 사인 부족 알림 팝업 (MainView와 동일)
-                if showInsufficientSignsAlert {
-                    insufficientSignsOverlay
-                }
+                overlaysView
             }
             .background(Color.white)
             .onAppear {
                 fetchMatchedUsers()
             }
-            // 취소 얼럿 (스와이프 시)
             .alert("Cancel Sign", isPresented: $showCancelAlert) {
                 Button("Keep", role: .cancel) { }
                 Button("Cancel Sign", role: .destructive) {
@@ -170,7 +56,155 @@ struct ChatListView: View {
         }
     }
     
-    // MARK: - Send Sign Overlay (MainView와 동일하게 통일)
+    // MARK: - Subviews
+    
+    private var headerView: some View {
+        HStack {
+            Text("Chats")
+                .font(.system(size: 24, weight: .bold))
+            Spacer()
+            HStack(spacing: 20) {
+                Image(systemName: "magnifyingglass")
+                Image(systemName: "person.badge.plus")
+                Image(systemName: "music.note")
+                Image(systemName: "gearshape")
+            }
+            .font(.system(size: 20))
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 15)
+    }
+    
+    private var menuTabsView: some View {
+        HStack(spacing: 25) {
+            tabButton(title: "Pending Signs", tag: 0)
+            tabButton(title: "Co-Sign", tag: 1)
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+    }
+    
+    @ViewBuilder
+    private var pendingSignsView: some View {
+        if pendingUsers.isEmpty && receivedUsers.isEmpty {
+            emptyStateView(icon: "paperplane", text: "No pending signs.\nTry to find your Co-sign!")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            pendingSignsList
+        }
+    }
+    
+    private var pendingSignsList: some View {
+        List {
+            if !pendingUsers.isEmpty {
+                Section(header: Text("Sign Sent").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
+                    ForEach(0..<pendingUsers.count, id: \.self) { index in
+                        PendingSignRow(me: currentUserData, other: pendingUsers[index], type: .sent)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .onTapGesture {
+                                selectedPendingUser = pendingUsers[index]
+                                selectedIsReceived = false
+                                showPendingDetail = true
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    userToProcess = pendingUsers[index]
+                                    showCancelAlert = true
+                                } label: {
+                                    Label("Cancel", systemImage: "xmark.circle.fill")
+                                }
+                            }
+                    }
+                }
+            }
+            
+            if !receivedUsers.isEmpty {
+                Section(header: Text("Sign Received").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
+                    ForEach(0..<receivedUsers.count, id: \.self) { index in
+                        PendingSignRow(me: currentUserData, other: receivedUsers[index], type: .received)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .onTapGesture {
+                                selectedPendingUser = receivedUsers[index]
+                                selectedIsReceived = true
+                                showPendingDetail = true
+                            }
+                    }
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .background(Color.white)
+    }
+    
+    @ViewBuilder
+    private var coSignView: some View {
+        if isLoading {
+            ProgressView().padding(.top, 50)
+        } else if matchedUsers.isEmpty {
+            emptyStateView(icon: "bubble.left.and.bubble.right", text: "No active chats.\nBoth sides must send signs!")
+        } else {
+            activeChatsList
+        }
+    }
+    
+    private var activeChatsList: some View {
+        List {
+            ForEach(matchedUsers.indices, id: \.self) { index in
+                NavigationLink(destination: ChatDetailView(otherUser: matchedUsers[index])) {
+                    ChatRow(user: matchedUsers[index])
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        withAnimation {
+                            let _ = matchedUsers.remove(at: index)
+                        }
+                    } label: {
+                        Label("Delete", systemImage: "trash.fill")
+                    }
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .background(Color.white)
+    }
+    
+    @ViewBuilder
+    private var overlaysView: some View {
+        // 프로필 팝업 오버레이
+        if showPendingDetail, let other = selectedPendingUser {
+            PendingProfileOverlay(
+                user: other, 
+                isShowing: $showPendingDetail,
+                isReceived: selectedIsReceived,
+                onSendSign: {
+                    userToProcess = other
+                    if mySignBalance >= 100 {
+                        showAcceptAlert = true
+                    } else {
+                        showInsufficientSignsAlert = true
+                    }
+                }
+            )
+        }
+        
+        // 사인 전송 확인 커스텀 오버레이
+        if showAcceptAlert {
+            sendSignConfirmationOverlay
+        }
+        
+        // 사인 부족 알림 팝업
+        if showInsufficientSignsAlert {
+            insufficientSignsOverlay
+        }
+    }
+    
+    // MARK: - Helper Views & Functions
+    
     private var sendSignConfirmationOverlay: some View {
         ZStack {
             Color.black.opacity(0.4)
@@ -222,7 +256,6 @@ struct ChatListView: View {
         }
     }
     
-    // MARK: - Insufficient Signs Overlay (MainView와 동일하게 통일)
     private var insufficientSignsOverlay: some View {
         ZStack {
             Color.black.opacity(0.4)
@@ -258,7 +291,6 @@ struct ChatListView: View {
                     }
                     
                     Button(action: {
-                        // 시뮬레이션: 충전 버튼 누르면 500개 추가
                         mySignBalance += 500
                         showInsufficientSignsAlert = false
                     }) {
@@ -285,22 +317,16 @@ struct ChatListView: View {
         
         if mySignBalance >= 100 {
             mySignBalance -= 100
-            
-            // 1. 받은 목록에서 제거
             receivedUsers.removeAll(where: { ($0["uid"] as? String) == uid })
             
-            // 2. 매칭 목록에 추가
             var newUser = user
             newUser["lastMessage"] = "Match established! Start chatting."
-            matchedUsers.insert(newUser, at: 0) // 최상단에 추가
+            matchedUsers.insert(newUser, at: 0)
             
-            // 3. 네비게이션 이동 (선택 사항: 코사인 탭으로 변경)
             withAnimation {
                 selectedMenu = 1
                 showPendingDetail = false
             }
-        } else {
-            // 사인이 부족한 경우에 대한 시나리오는 유지
         }
     }
     
@@ -339,9 +365,13 @@ struct ChatListView: View {
         if !matchedUsers.isEmpty { return }
         isLoading = true
         let db = Firestore.firestore()
-        db.collection("users").limit(to: 2).getDocuments { snapshot, _ in
+        db.collection("users").limit(to: 3).getDocuments { snapshot, _ in
             if let docs = snapshot?.documents {
-                self.matchedUsers = docs.map { $0.data() }
+                var users = docs.map { $0.data() }
+                if users.count >= 3 {
+                    users[2]["hasLeft"] = true
+                }
+                self.matchedUsers = users
             }
             isLoading = false
         }
@@ -352,7 +382,6 @@ enum SignType {
     case sent, received
 }
 
-// MARK: - Pending Signs Row Component
 struct PendingSignRow: View {
     let me: [String: Any]?
     let other: [String: Any]
@@ -410,7 +439,6 @@ struct PendingSignRow: View {
     }
 }
 
-// MARK: - Pending Profile Overlay
 struct PendingProfileOverlay: View {
     let user: [String: Any]
     @Binding var isShowing: Bool
@@ -427,7 +455,6 @@ struct PendingProfileOverlay: View {
                     .padding(.horizontal, 10)
                 
                 HStack(spacing: 15) {
-                    // Close 버튼 (왼쪽)
                     Button(action: { isShowing = false }) {
                         Text("Close")
                             .font(.system(size: 16, weight: .bold))
@@ -438,7 +465,6 @@ struct PendingProfileOverlay: View {
                             .cornerRadius(12)
                     }
                     
-                    // 받은 사인인 경우 Send Sign 버튼 표시 (오른쪽)
                     if isReceived {
                         Button(action: {
                             isShowing = false
@@ -507,6 +533,7 @@ struct ChatRow: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .background(Color.white)
         .contentShape(Rectangle())
     }
 }

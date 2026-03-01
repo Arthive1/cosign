@@ -23,6 +23,7 @@ struct MainView: View {
     @State private var pendingUsers: [[String: Any]] = []
     @State private var receivedUsers: [[String: Any]] = []
     @State private var selectedTab: Int = 0
+    @State private var ignoredIds: Set<String> = []
     
     var body: some View {
         NavigationStack {
@@ -147,6 +148,7 @@ struct MainView: View {
                     
                     if otherId == Auth.auth().currentUser?.uid { continue }
                     if sentSignUserIds.contains(otherId) { continue }
+                    if ignoredIds.contains(otherId) { continue } // 무시 목록 추가
                     
                     let otherVector = Vectorize(otherData)
                     let sim = cosineSimilarity(myVector, otherVector)
@@ -157,10 +159,16 @@ struct MainView: View {
                     }
                 }
                 
-                withAnimation(.spring()) {
-                    self.matchedUser = bestMatch
-                    self.similarityScore = maxSimilarity
-                    self.isFinding = false
+                // 2초 뒤에 결과를 반영하여 스피너 UI가 보이도록 딜레이 추가
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    withAnimation {
+                        if let match = bestMatch, let matchId = match["uid"] as? String {
+                            ignoredIds.insert(matchId) // 현재 매칭된 유저를 무시 목록에 추가 (다음 매칭을 위해)
+                        }
+                        self.matchedUser = bestMatch
+                        self.similarityScore = maxSimilarity
+                        self.isFinding = false
+                    }
                 }
             }
     }

@@ -147,9 +147,10 @@ struct CoSignHomeView: View {
                 }
                 
                 Button(action: { 
-                    withAnimation(.spring()) {
-                        matchedUser = nil 
+                    withAnimation {
+                        matchedUser = nil // 프로필을 사라지게 하여 탐색 모션(findButtonSection)이 보이도록 함
                         isSignSent = false
+                        startMatchingProcess() // 즉시 다음 매칭 시작
                     }
                 }) {
                     Text("Find New Co-sign")
@@ -215,10 +216,17 @@ struct CoSignHomeView: View {
             }) {
                 VStack(spacing: 20) {
                     if isFinding {
-                        ProgressView().scaleEffect(1.5).padding()
-                        Text("Calculating Similarity...")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.secondary)
+                        // 깔끔한 톱니바퀴(스피너) 모션과 영어 안내 문구
+                        VStack(spacing: 20) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.53, green: 0.75, blue: 0.94)))
+                                .scaleEffect(1.8)
+                            
+                            Text("We are looking for the\nbest match for you...")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
                     } else {
                         Image(systemName: "person.2.circle.fill")
                             .font(.system(size: 80))
@@ -236,10 +244,12 @@ struct CoSignHomeView: View {
             .scaleEffect(isFinding ? 0.95 : 1.0)
             .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isFinding)
             
-            Text("Tap to find your Co-sign")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundColor(.secondary)
-                .padding(.top, 10)
+            if !isFinding {
+                Text("Tap to find your Co-sign")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 10)
+            }
         }
     }
     
