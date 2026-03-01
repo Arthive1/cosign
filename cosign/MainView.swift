@@ -19,7 +19,8 @@ struct MainView: View {
     @State private var similarityScore: Double = 0.0
     @State private var showSendSignConfirm: Bool = false
     @State private var isSignSent: Bool = false
-    
+    @State private var sentSignUserIds: Set<String> = []
+    @State private var pendingUsers: [[String: Any]] = []
     @State private var selectedTab: Int = 0
     
     var body: some View {
@@ -37,6 +38,8 @@ struct MainView: View {
                     similarityScore: $similarityScore,
                     showSendSignConfirm: $showSendSignConfirm,
                     isSignSent: $isSignSent,
+                    sentSignUserIds: $sentSignUserIds,
+                    pendingUsers: $pendingUsers,
                     fetchMyData: fetchMyData,
                     startMatchingProcess: startMatchingProcess,
                     generateMockUsers: generateMockUsers,
@@ -49,7 +52,10 @@ struct MainView: View {
                 .tag(0)
                 
                 // 2. Chat 탭 (Balloon 아이콘)
-                ChatListView()
+                ChatListView(
+                    currentUserData: currentUserData,
+                    pendingUsers: pendingUsers
+                )
                 .tabItem {
                     Image(systemName: "bubble.left.and.bubble.right.fill")
                     Text("Chat")
@@ -124,8 +130,12 @@ struct MainView: View {
                 let myVector = Vectorize(myData)
                 
                 for doc in docs {
-                    let otherData = doc.data()
-                    if doc.documentID == Auth.auth().currentUser?.uid { continue }
+                    var otherData = doc.data()
+                    let otherId = doc.documentID
+                    otherData["uid"] = otherId
+                    
+                    if otherId == Auth.auth().currentUser?.uid { continue }
+                    if sentSignUserIds.contains(otherId) { continue }
                     
                     let otherVector = Vectorize(otherData)
                     let sim = cosineSimilarity(myVector, otherVector)

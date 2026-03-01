@@ -14,6 +14,8 @@ struct CoSignHomeView: View {
     @Binding var similarityScore: Double
     @Binding var showSendSignConfirm: Bool
     @Binding var isSignSent: Bool
+    @Binding var sentSignUserIds: Set<String>
+    @Binding var pendingUsers: [[String: Any]]
     
     // 이 뷰에서만 쓰는 함수들
     let fetchMyData: () -> Void
@@ -23,7 +25,7 @@ struct CoSignHomeView: View {
 
     var body: some View {
         ZStack {
-            Color(white: 0.98).ignoresSafeArea()
+            Color.white.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // 1. My Sign 행 (Top)
@@ -64,17 +66,17 @@ struct CoSignHomeView: View {
                     } placeholder: {
                         Image(systemName: "person.circle.fill").foregroundColor(.gray.opacity(0.3))
                     }
-                    .frame(width: 28, height: 28)
+                    .frame(width: 32, height: 32)
                     .clipShape(Circle())
                 } else {
                     Image(systemName: "person.circle.fill")
                         .resizable()
-                        .frame(width: 28, height: 28)
+                        .frame(width: 32, height: 32)
                         .foregroundColor(.gray.opacity(0.3))
                 }
                 
                 Text("\(currentUserData?["lastName"] as? String ?? "")\(currentUserData?["firstName"] as? String ?? "")")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
             }
             .contentShape(Rectangle())
@@ -104,8 +106,9 @@ struct CoSignHomeView: View {
                 .onTapGesture(count: 2) { mySignBalance += 100 }
             }
         }
-        .padding(.horizontal, 30)
-        .frame(height: 40)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .frame(height: 60)
     }
 
     // MARK: - Footer (Mock Data / New Match)
@@ -280,6 +283,12 @@ struct CoSignHomeView: View {
                         if mySignBalance >= 100 {
                             mySignBalance -= 100
                             isSignSent = true
+                            if let other = matchedUser, let otherId = other["uid"] as? String {
+                                sentSignUserIds.insert(otherId)
+                                if !pendingUsers.contains(where: { ($0["uid"] as? String) == otherId }) {
+                                    pendingUsers.append(other)
+                                }
+                            }
                             showSendSignConfirm = false
                         } else {
                             showSendSignConfirm = false
