@@ -65,19 +65,25 @@ struct ProfileComparisonColumn: View {
             .aspectRatio(1, contentMode: .fit)
             .padding(.horizontal, 10)
             
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
                 InfoLabel(text: data["nickname"] as? String ?? "User", icon: "person", isBold: true)
                 InfoLabel(text: String((data["birthday"] as? String ?? "Unknown").prefix(4)), icon: "calendar")
                 InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
                 InfoLabel(text: "\(data["weight"] as? String ?? "0")kg", icon: "scalemass")
                 InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")
                 
-                Text(getHighestEdu(data))
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                
+                HStack(spacing: 6) {
+                    Image(systemName: "graduationcap")
+                        .font(.system(size: 11))
+                        .foregroundColor(.gray)
+                    Text(getHighestEdu(data))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 35) // 프로필 사진 정렬에 맞춰 패딩 조정
             .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity)
