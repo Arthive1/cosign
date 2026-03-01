@@ -98,6 +98,15 @@ struct MainView: View {
                     ]
                 }
             }
+            .onChange(of: selectedTab) { _, newValue in
+                if newValue == 0 {
+                    withAnimation {
+                        matchedUser = nil
+                        isSignSent = false
+                        similarityScore = 0.0
+                    }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileSetup"))) { _ in
                 isEditingProfile = true
                 showProfileSetup = true

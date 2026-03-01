@@ -91,6 +91,11 @@ struct ProfileSetupView: View {
     @State private var wasSectionDoneBeforeEditing: Bool = false
     @State private var showBonusAlert: Bool = false
     
+    // 최종 확인 팝업 관련 상태
+    @State private var showInitialConfirm: Bool = false
+    @State private var showEditConfirm: Bool = false
+    @State private var showInsufficientSignsAlert: Bool = false
+    
     enum SetupSection: String, Identifiable {
         case profile = "Profile", economics = "Economics", education = "Education", hobbies = "Hobbies"
         var id: String { self.rawValue }
@@ -127,7 +132,15 @@ struct ProfileSetupView: View {
                     
                     // 최종 완료 버튼
                     Button(action: {
-                        handleFinalSave()
+                        if headerTitle == "Change Profile" {
+                            if mySignBalance >= 100 {
+                                showEditConfirm = true
+                            } else {
+                                showInsufficientSignsAlert = true
+                            }
+                        } else {
+                            showInitialConfirm = true
+                        }
                     }) {
                         Text("Finish Update")
                             .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -148,9 +161,11 @@ struct ProfileSetupView: View {
                     ProgressView("Finalizing...").padding().background(Color.white).cornerRadius(15).shadow(radius: 10)
                 }
                 
-                if showBonusAlert {
-                    bonusPopupOverlay
-                }
+                // --- 팝업 오버레이들 ---
+                if showBonusAlert { bonusPopupOverlay }
+                if showInitialConfirm { initialConfirmOverlay }
+                if showEditConfirm { editConfirmOverlay }
+                if showInsufficientSignsAlert { insufficientSignsOverlay }
             }
             .onAppear {
                 fetchExistingProfile()
@@ -650,6 +665,118 @@ struct ProfileSetupView: View {
             .cornerRadius(25)
             .padding(.horizontal, 40)
             .shadow(radius: 20)
+        }
+    }
+    
+    // MARK: - Confirmation Popups
+    
+    private var initialConfirmOverlay: some View {
+        customConfirmPopup(
+            title: "Is the information correct?",
+            message: "Is the entered information correct? 100 Signs will be required for further modifications in the future.",
+            buttonTitle: "Confirm",
+            confirmAction: {
+                showInitialConfirm = false
+                handleFinalSave()
+            },
+            cancelAction: { showInitialConfirm = false }
+        )
+    }
+    
+    private var editConfirmOverlay: some View {
+        customConfirmPopup(
+            title: "Check all information?",
+            message: "Have you checked all the modified information? 100 Signs are required for profile modification.",
+            buttonTitle: "Pay 100 Signs",
+            confirmAction: {
+                if mySignBalance >= 100 {
+                    mySignBalance -= 100
+                    showEditConfirm = false
+                    handleFinalSave()
+                } else {
+                    showEditConfirm = false
+                    showInsufficientSignsAlert = true
+                }
+            },
+            cancelAction: { showEditConfirm = false }
+        )
+    }
+    
+    private var insufficientSignsOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.orange)
+                VStack(spacing: 8) {
+                    Text("Insufficient Signs")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("You need at least 100 Signs to modify your profile.")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                Button(action: { showInsufficientSignsAlert = false }) {
+                    Text("Go Back")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(Color.orange)
+                        .cornerRadius(15)
+                }
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(25)
+            .padding(.horizontal, 40)
+            .shadow(radius: 20)
+        }
+    }
+    
+    private func customConfirmPopup(title: String, message: String, buttonTitle: String, confirmAction: @escaping () -> Void, cancelAction: @escaping () -> Void) -> some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            VStack(spacing: 20) {
+                VStack(spacing: 12) {
+                    Text(title)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text(message)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                VStack(spacing: 12) {
+                    Button(action: confirmAction) {
+                        Text(buttonTitle)
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: cancelAction) {
+                        Text("Back")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
         }
     }
     

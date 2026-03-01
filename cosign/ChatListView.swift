@@ -26,6 +26,21 @@ struct ChatListView: View {
     // 대화방별 마지막 메시지를 저장할 상태 (캐싱 효과)
     @State private var lastMessages: [String: String] = [:]
     
+    // 핀 고정 및 알람 상태
+    @State private var pinnedUserIds: Set<String> = []
+    @State private var mutedUserIds: Set<String> = []
+    
+    private var sortedMatchedUsers: [[String: Any]] {
+        matchedUsers.sorted { u1, u2 in
+            let id1 = u1["uid"] as? String ?? ""
+            let id2 = u2["uid"] as? String ?? ""
+            let pin1 = pinnedUserIds.contains(id1)
+            let pin2 = pinnedUserIds.contains(id2)
+            if pin1 != pin2 { return pin1 }
+            return false // 유지
+        }
+    }
+    
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -60,8 +75,10 @@ struct ChatListView: View {
     // MARK: - Subviews
     
     private var menuTabsView: some View {
-        HStack(spacing: 25) {
+        HStack(spacing: 0) {
+            Spacer()
             tabButton(title: "Pending Signs", tag: 0)
+            Spacer()
             tabButton(title: "Co-Sign", tag: 1)
             Spacer()
         }
@@ -136,26 +153,51 @@ struct ChatListView: View {
     
     private var activeChatsList: some View {
         List {
-            ForEach(matchedUsers.indices, id: \.self) { index in
-                let user = matchedUsers[index]
+            ForEach(sortedMatchedUsers.indices, id: \.self) { index in
+                let user = sortedMatchedUsers[index]
                 let uid = user["uid"] as? String ?? ""
                 let displayMessage = lastMessages[uid] ?? (user["lastMessage"] as? String ?? "Match established! Start chatting.")
+                let isPinned = pinnedUserIds.contains(uid)
+                let isMuted = mutedUserIds.contains(uid)
                 
                 NavigationLink(destination: ChatDetailView(otherUser: user, onMessageSent: { lastMsg in
                     lastMessages[uid] = lastMsg
                 })) {
-                    ChatRow(user: user, customLastMessage: displayMessage)
+                    ChatRow(user: user, customLastMessage: displayMessage, isPinned: isPinned, isMuted: isMuted)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
+                .swipeActions(edge: .leading) {
+                    Button {
+                        withAnimation(.spring()) {
+                            if pinnedUserIds.contains(uid) { pinnedUserIds.remove(uid) }
+                            else { pinnedUserIds.insert(uid) }
+                        }
+                    } label: {
+                        Label(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash.fill" : "pin.fill")
+                    }
+                    .tint(.orange)
+                }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
-                        withAnimation {
-                            let _ = matchedUsers.remove(at: index)
+                        if let matchedIndex = matchedUsers.firstIndex(where: { ($0["uid"] as? String) == uid }) {
+                            withAnimation {
+                                matchedUsers.remove(at: matchedIndex)
+                            }
                         }
                     } label: {
                         Label("Delete", systemImage: "trash.fill")
                     }
+                    
+                    Button {
+                        withAnimation {
+                            if mutedUserIds.contains(uid) { mutedUserIds.remove(uid) }
+                            else { mutedUserIds.insert(uid) }
+                        }
+                    } label: {
+                        Label(isMuted ? "Unmute" : "Mute", systemImage: isMuted ? "bell.slash.fill" : "bell.fill")
+                    }
+                    .tint(.gray)
                 }
             }
         }
@@ -544,32 +586,53 @@ struct PendingProfileOverlay: View {
 struct ChatRow: View {
     let user: [String: Any]
     var customLastMessage: String? = nil
+    var isPinned: Bool = false
+    var isMuted: Bool = false
     
     var body: some View {
         HStack(spacing: 15) {
-            if let url = user["profileImageUrl"] as? String, !url.isEmpty {
-                AsyncImage(url: URL(string: url)) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.1))
-                }
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
+            ZStack(alignment: .bottomTrailing) {
+                if let url = user["profileImageUrl"] as? String, !url.isEmpty {
+                    AsyncImage(url: URL(string: url)) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle().fill(Color.gray.opacity(0.1))
+                    }
                     .frame(width: 50, height: 50)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.gray.opacity(0.5))
-                    )
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.gray.opacity(0.5))
+                        )
+                }
+                
+                if isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 8))
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(Color.orange)
+                        .clipShape(Circle())
+                        .offset(x: 3, y: 3)
+                }
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 6) {
                     Text("\(user["nickname"] as? String ?? "User")")
                         .font(.system(size: 16, weight: .bold))
+                    
+                    if isMuted {
+                        Image(systemName: "bell.slash.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Spacer()
                     Text("Just now")
                         .font(.system(size: 12))

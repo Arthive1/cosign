@@ -246,7 +246,7 @@ struct CoSignHomeView: View {
                     
                     Button(action: {
                         if mySignBalance >= 100 {
-                            mySignBalance -= 100
+                            // mySignBalance -= 100 // Remove immediate deduction
                             isSignSent = true
                             if let other = matchedUser, let otherId = other["uid"] as? String {
                                 sentSignUserIds.insert(otherId)
