@@ -54,7 +54,8 @@ struct MainView: View {
                 // 2. Chat 탭 (Balloon 아이콘)
                 ChatListView(
                     currentUserData: currentUserData,
-                    pendingUsers: pendingUsers
+                    pendingUsers: $pendingUsers,
+                    sentSignUserIds: $sentSignUserIds
                 )
                 .tabItem {
                     Image(systemName: "bubble.left.and.bubble.right.fill")

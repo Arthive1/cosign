@@ -4,13 +4,18 @@ import FirebaseAuth
 
 struct ChatListView: View {
     let currentUserData: [String: Any]?
-    let pendingUsers: [[String: Any]]
+    @Binding var pendingUsers: [[String: Any]]
+    @Binding var sentSignUserIds: Set<String>
     
     @State private var matchedUsers: [[String: Any]] = []
     @State private var isLoading: Bool = true
     @State private var selectedMenu: Int = 0 // 0: Pending Signs, 1: Co-Sign
     @State private var showPendingDetail: Bool = false
     @State private var selectedPendingUser: [String: Any]? = nil
+    
+    // 취소 관련 상태
+    @State private var showCancelAlert: Bool = false
+    @State private var userToCancel: [String: Any]? = nil
     
     var body: some View {
         NavigationStack {
@@ -41,28 +46,43 @@ struct ChatListView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
                     
-                    // 리스트
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            if selectedMenu == 0 {
-                                // 1. Pending Signs 섹션
-                                if !pendingUsers.isEmpty {
-                                    ForEach(0..<pendingUsers.count, id: \.self) { index in
-                                        PendingSignRow(me: currentUserData, other: pendingUsers[index])
-                                            .onTapGesture {
-                                                selectedPendingUser = pendingUsers[index]
-                                                showPendingDetail = true
-                                            }
-                                        
-                                        if index < pendingUsers.count - 1 {
-                                            Divider().padding(.horizontal, 20)
+                    // 리스트 영역
+                    if selectedMenu == 0 {
+                        // 1. Pending Signs 섹션 (List 스타일로 변경하여 스와이프 지원)
+                        if !pendingUsers.isEmpty {
+                            List {
+                                ForEach(0..<pendingUsers.count, id: \.self) { index in
+                                    PendingSignRow(me: currentUserData, other: pendingUsers[index])
+                                        .listRowInsets(EdgeInsets())
+                                        .listRowSeparator(.hidden)
+                                        .onTapGesture {
+                                            selectedPendingUser = pendingUsers[index]
+                                            showPendingDetail = true
                                         }
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                            Button(role: .destructive) {
+                                                userToCancel = pendingUsers[index]
+                                                showCancelAlert = true
+                                            } label: {
+                                                Label("Cancel", systemImage: "xmark.circle.fill")
+                                            }
+                                        }
+                                    
+                                    if index < pendingUsers.count - 1 {
+                                        Divider().padding(.horizontal, 20)
                                     }
-                                } else {
-                                    emptyStateView(icon: "paperplane", text: "No pending signs.\nTry to find your Co-sign!")
                                 }
-                            } else {
-                                // 2. Co-Sign 섹션 (채팅)
+                            }
+                            .listStyle(PlainListStyle())
+                            .background(Color.white)
+                        } else {
+                            emptyStateView(icon: "paperplane", text: "No pending signs.\nTry to find your Co-sign!")
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    } else {
+                        // 2. Co-Sign 섹션
+                        ScrollView {
+                            VStack(spacing: 0) {
                                 if isLoading {
                                     ProgressView().padding(.top, 50)
                                 } else if matchedUsers.isEmpty {
@@ -73,6 +93,10 @@ struct ChatListView: View {
                                             ChatRow(user: matchedUsers[index])
                                         }
                                         .buttonStyle(PlainButtonStyle())
+                                        
+                                        if index < matchedUsers.count - 1 {
+                                            Divider().padding(.horizontal, 20)
+                                        }
                                     }
                                 }
                             }
@@ -88,6 +112,18 @@ struct ChatListView: View {
             .background(Color.white)
             .onAppear {
                 fetchMatchedUsers()
+            }
+            // 취소 확인 얼럿
+            .alert("Cancel Sign", isPresented: $showCancelAlert) {
+                Button("Keep", role: .cancel) { }
+                Button("Cancel Sign", role: .destructive) {
+                    if let user = userToCancel, let uid = user["uid"] as? String {
+                        pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
+                        sentSignUserIds.remove(uid)
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to cancel sending a sign? 100 Signs will not be refunded.")
             }
         }
     }
@@ -121,14 +157,11 @@ struct ChatListView: View {
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
         }
-        .padding(.top, 100)
     }
     
     private func fetchMatchedUsers() {
         isLoading = true
         let db = Firestore.firestore()
-        
-        // 시뮬레이션을 위해 유저 몇 명을 가져옴 (실제로는 상호 동의된 유저들)
         db.collection("users").limit(to: 3).getDocuments { snapshot, _ in
             if let docs = snapshot?.documents {
                 self.matchedUsers = docs.map { $0.data() }
@@ -144,39 +177,31 @@ struct PendingSignRow: View {
     let other: [String: Any]
     
     var body: some View {
-        HStack(spacing: 12) {
-            // My Profile
-            miniProfileCircle(userData: me)
-            
-            // Me Name
-            Text("\(me?["lastName"] as? String ?? "")\(me?["firstName"] as? String ?? "Me")")
-                .font(.system(size: 14, weight: .bold))
-            
-            // Sign Icon
-            Image(systemName: "waveform")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
-                .padding(.horizontal, 4)
-            
-            // Other Name
-            Text("\(other["lastName"] as? String ?? "")\(other["firstName"] as? String ?? "")")
-                .font(.system(size: 14, weight: .bold))
-            
+        HStack(spacing: 15) {
             // Other Profile
             miniProfileCircle(userData: other)
+            
+            // Other Name
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(other["lastName"] as? String ?? "")\(other["firstName"] as? String ?? "")")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Sent Sign")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
             
             Text("Pending")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.gray)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(Color.gray.opacity(0.1))
-                .cornerRadius(4)
+                .cornerRadius(6)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 15)
+        .padding(.vertical, 12)
         .background(Color.white)
         .contentShape(Rectangle())
     }
@@ -186,6 +211,7 @@ struct PendingSignRow: View {
             if let url = userData?["profileImageUrl"] as? String, !url.isEmpty {
                 AsyncImage(url: URL(string: url)) { image in
                     image.resizable()
+                        .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Circle().fill(Color.gray.opacity(0.1))
                 }
@@ -194,12 +220,12 @@ struct PendingSignRow: View {
                     .fill(Color.gray.opacity(0.1))
                     .overlay(
                         Image(systemName: "person.fill")
-                            .font(.system(size: 12))
+                            .font(.system(size: 16))
                             .foregroundColor(.gray.opacity(0.5))
                     )
             }
         }
-        .frame(width: 32, height: 32)
+        .frame(width: 44, height: 44)
         .clipShape(Circle())
     }
 }
@@ -215,7 +241,7 @@ struct PendingProfileOverlay: View {
                 .onTapGesture { isShowing = false }
             
             VStack {
-                ProfileComparisonColumn(title: "Sent Sign To", data: user, isMatch: true, showPhoneNumber: false)
+                ProfileComparisonColumn(title: "Sent Sign To", data: user, isMatch: true)
                     .padding(.horizontal, 10)
                 
                 Button(action: { isShowing = false }) {
@@ -247,6 +273,7 @@ struct ChatRow: View {
             if let url = user["profileImageUrl"] as? String, !url.isEmpty {
                 AsyncImage(url: URL(string: url)) { image in
                     image.resizable()
+                        .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Circle().fill(Color.gray.opacity(0.1))
                 }
@@ -285,5 +312,5 @@ struct ChatRow: View {
 }
 
 #Preview {
-    ChatListView(currentUserData: nil, pendingUsers: [])
+    ChatListView(currentUserData: nil, pendingUsers: .constant([]), sentSignUserIds: .constant([]))
 }

@@ -22,6 +22,8 @@ struct CoSignHomeView: View {
     let startMatchingProcess: () -> Void
     let generateMockUsers: () -> Void
     let isGeneratingData: Bool
+    
+    @State private var showInsufficientSignsAlert: Bool = false
 
     var body: some View {
         ZStack {
@@ -51,6 +53,11 @@ struct CoSignHomeView: View {
             // 4. Send Sign 확인 팝업 (Overlay)
             if showSendSignConfirm {
                 sendSignConfirmationOverlay
+            }
+            
+            // 5. 사인 부족 알림 팝업
+            if showInsufficientSignsAlert {
+                insufficientSignsOverlay
             }
         }
     }
@@ -116,7 +123,13 @@ struct CoSignHomeView: View {
         VStack(spacing: 12) {
             if matchedUser != nil {
                 if !isSignSent {
-                    Button(action: { showSendSignConfirm = true }) {
+                    Button(action: { 
+                        if mySignBalance >= 100 {
+                            showSendSignConfirm = true 
+                        } else {
+                            showInsufficientSignsAlert = true
+                        }
+                    }) {
                         Text("Send Sign")
                             .font(.system(size: 16, weight: .black))
                             .foregroundColor(.white)
@@ -127,7 +140,7 @@ struct CoSignHomeView: View {
                     }
                     .padding(.bottom, 5)
                 } else {
-                    Text("Co-sign Found!")
+                    Text("Sign Sent!")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.gray)
                         .padding(.bottom, 10)
@@ -239,8 +252,8 @@ struct CoSignHomeView: View {
                 .padding(.top, 10)
             
             HStack(spacing: 0) {
-                ProfileComparisonColumn(title: "Me", data: myData, isMatch: false, showPhoneNumber: isSignSent)
-                ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true, showPhoneNumber: isSignSent)
+                ProfileComparisonColumn(title: "Me", data: myData, isMatch: false)
+                ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true)
             }
         }
         .background(Color.white)
@@ -299,6 +312,64 @@ struct CoSignHomeView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 65)
+                            .background(Color.blue)
+                            .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(25)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+    
+    // MARK: - Insufficient Signs Overlay
+    private var insufficientSignsOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showInsufficientSignsAlert = false }
+            
+            VStack(spacing: 25) {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.orange)
+                    
+                    Text("Insufficient Signs")
+                        .font(.system(size: 18, weight: .bold))
+                    
+                    Text("You don't have enough signs.\nWould you like to top up?")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                HStack(spacing: 15) {
+                    Button(action: { showInsufficientSignsAlert = false }) {
+                        Text("Back")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: {
+                        // 시뮬레이션: 충전 버튼 누르면 500개 추가
+                        mySignBalance += 500
+                        showInsufficientSignsAlert = false
+                    }) {
+                        Text("Top Up")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
                             .background(Color.blue)
                             .cornerRadius(15)
                     }

@@ -41,7 +41,6 @@ struct ProfileComparisonColumn: View {
     let title: String
     let data: [String: Any]
     let isMatch: Bool
-    let showPhoneNumber: Bool
     
     var body: some View {
         VStack(spacing: 20) {
@@ -78,15 +77,8 @@ struct ProfileComparisonColumn: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                 
-                if showPhoneNumber {
-                    Text(data["phoneNumber"] as? String ?? "010-0000-0000")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .padding(.bottom, 0)
-                }
             }
-            .padding(.bottom, 25)
+            .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity)
     }
