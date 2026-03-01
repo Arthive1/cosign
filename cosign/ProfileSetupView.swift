@@ -7,6 +7,7 @@ import FirebaseStorage
 
 struct ProfileSetupView: View {
     @Environment(\.dismiss) var dismiss
+    var headerTitle: String = "Complete Your Profile"
     
     // 섹션별 편집 모드 관리
     @State private var editingSection: SetupSection? = nil
@@ -100,7 +101,7 @@ struct ProfileSetupView: View {
                 
                 VStack(spacing: 25) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Complete Your Profile")
+                        Text(headerTitle)
                             .font(.system(size: 28, weight: .black, design: .rounded))
                             .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
                         Text("Finish all categories to unlock features")
