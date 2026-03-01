@@ -15,6 +15,8 @@ struct MainView: View {
     @State private var matchedUser: [String: Any]? = nil
     @State private var currentUserData: [String: Any]? = nil
     @State private var similarityScore: Double = 0.0
+    @State private var showSendSignConfirm: Bool = false
+    @State private var isSignSent: Bool = false
     
     var body: some View {
         NavigationStack {
@@ -40,6 +42,11 @@ struct MainView: View {
                     
                     // 3. 로그아웃 행 (Bottom)
                     footerSection
+                }
+                
+                // 4. Send Sign 확인 팝업 (Overlay)
+                if showSendSignConfirm {
+                    sendSignConfirmationOverlay
                 }
             }
             .navigationTitle("Main")
@@ -89,16 +96,35 @@ struct MainView: View {
     
     // MARK: - Footer (Mock Data / Sign Out)
     private var footerSection: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 12) {
             if matchedUser != nil {
+                if !isSignSent {
+                    Button(action: { showSendSignConfirm = true }) {
+                        Text("Send Sign")
+                            .font(.system(size: 16, weight: .black))
+                            .foregroundColor(.white)
+                            .frame(width: 200, height: 50)
+                            .background(Color.blue)
+                            .cornerRadius(25)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                    }
+                    .padding(.bottom, 5)
+                } else {
+                    Text("Sign Sent!")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.gray)
+                        .padding(.bottom, 10)
+                }
+                
                 Button(action: { 
                     withAnimation(.spring()) {
                         matchedUser = nil 
+                        isSignSent = false
                     }
                 }) {
                     Text("Find New Co-sign")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.blue.opacity(0.8))
                 }
                 .padding(.bottom, 5)
             }
@@ -200,18 +226,24 @@ struct MainView: View {
     
     // MARK: - Comparison UI
     private func comparisonSection(myData: [String: Any], otherData: [String: Any]) -> some View {
-        HStack(spacing: 0) {
-            // 나 (왼쪽)
-            ProfileComparisonColumn(title: "Me", data: myData, isMatch: false)
+        VStack(spacing: 15) {
+            // 코사인 유사도 점수 표시
+            Text(String(format: "Similarity Score: %.2f%%", similarityScore * 100))
+                .font(.system(size: 18, weight: .black, design: .rounded))
+                .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                .padding(.top, 10)
             
-            Divider()
-            
-            // 상대방 (오른쪽)
-            ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true)
+            HStack(spacing: 0) {
+                // 나 (왼쪽)
+                ProfileComparisonColumn(title: "Me", data: myData, isMatch: false)
+                
+                // 상대방 (오른쪽)
+                ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true)
+            }
         }
         .background(Color.white)
         .cornerRadius(25)
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 10)
         .padding(.horizontal, 20)
     }
     
@@ -367,6 +399,68 @@ struct MainView: View {
     }
 }
 
+// MARK: - Send Sign Overlay
+extension MainView {
+    private var sendSignConfirmationOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showSendSignConfirm = false }
+            
+            VStack(spacing: 25) {
+                VStack(spacing: 12) {
+                    Text("Would you like to send a Sign?")
+                        .font(.system(size: 17, weight: .bold))
+                    
+                    Text("100 Signs will be deducted\nif the other person also sends a Sign.")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                HStack(spacing: 15) {
+                    // Back 버튼
+                    Button(action: { showSendSignConfirm = false }) {
+                        Text("Back")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 65)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    // Send 버튼
+                    Button(action: {
+                        if mySignBalance >= 100 {
+                            mySignBalance -= 100
+                            isSignSent = true
+                            showSendSignConfirm = false
+                        } else {
+                            showSendSignConfirm = false
+                        }
+                    }) {
+                        Text("Send")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 65)
+                            .background(Color.blue)
+                            .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(25)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+}
+
 // MARK: - Subviews
 struct ProfileComparisonColumn: View {
     let title: String
@@ -374,24 +468,29 @@ struct ProfileComparisonColumn: View {
     let isMatch: Bool
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 20) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundColor(isMatch ? .blue : .gray)
                 .padding(.top, 15)
             
-            // 프로필 사진 (가로세로 동일 네모)
-            Rectangle()
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 100, height: 100)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray.opacity(0.3))
-                )
-                .cornerRadius(12)
+            // 프로필 사진 (가로세로 동일 네모, 너비 꽉 차게)
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(Color.gray.opacity(0.1))
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: geo.size.width * 0.4))
+                            .foregroundColor(.gray.opacity(0.3))
+                    )
+                    .aspectRatio(1, contentMode: .fit)
+                    .cornerRadius(12)
+                    .frame(width: geo.size.width, height: geo.size.width)
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .padding(.horizontal, 10)
             
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 InfoLabel(text: "\(data["lastName"] as? String ?? "")\(data["firstName"] as? String ?? "")", icon: "person", isBold: true)
                 InfoLabel(text: data["birthday"] as? String ?? "Unknown", icon: "calendar")
                 InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
@@ -399,11 +498,11 @@ struct ProfileComparisonColumn: View {
                 InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")
                 
                 Text(getHighestEdu(data))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
-            .padding(.bottom, 20)
+            .padding(.bottom, 25)
         }
         .frame(maxWidth: .infinity)
     }
@@ -422,12 +521,12 @@ struct InfoLabel: View {
     var isBold: Bool = false
     
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundColor(.gray)
             Text(text)
-                .font(.system(size: 13, weight: isBold ? .bold : .regular))
+                .font(.system(size: 15, weight: isBold ? .bold : .regular))
         }
     }
 }
