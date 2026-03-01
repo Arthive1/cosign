@@ -14,6 +14,9 @@ struct ChatDetailView: View {
         ChatMessage(id: UUID(), text: "Yes! 92% is impressive. What are your hobbies?", isMe: false)
     ]
     
+    // 마지막 메시지 업데이트를 위한 콜백
+    var onMessageSent: ((String) -> Void)? = nil
+    
     // 상대방이 나갔는지 여부 (Mock 데이터 기반)
     private var isUserLeft: Bool {
         return otherUser["hasLeft"] as? Bool ?? false
@@ -148,8 +151,10 @@ struct ChatDetailView: View {
     }
     
     private func sendMessage() {
+        if messageText.trimmingCharacters(in: .whitespaces).isEmpty { return }
         let newMessage = ChatMessage(id: UUID(), text: messageText, isMe: true)
         messages.append(newMessage)
+        onMessageSent?(messageText) // 목록 화면으로 마지막 메시지 전달
         messageText = ""
     }
 }
@@ -212,5 +217,5 @@ struct MessageBubble: View {
 }
 
 #Preview {
-    ChatDetailView(otherUser: ["lastName": "Kim", "firstName": "Minsoo", "hasLeft": false])
+    ChatDetailView(otherUser: ["lastName": "Kim", "firstName": "Minsoo", "hasLeft": false], onMessageSent: { _ in })
 }

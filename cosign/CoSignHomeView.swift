@@ -24,16 +24,13 @@ struct CoSignHomeView: View {
     let isGeneratingData: Bool
     
     @State private var showInsufficientSignsAlert: Bool = false
+    @State private var showBalance: Bool = false
 
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 1. My Sign 행 (Top)
-                headerSection
-                    .padding(.top, 10)
-                
                 Spacer()
                 
                 // 2. 중앙 영역: 매칭 전(버튼) vs 매칭 후(비교 UI)
@@ -62,62 +59,7 @@ struct CoSignHomeView: View {
         }
     }
     
-    // MARK: - Header (Profile & Sign)
-    private var headerSection: some View {
-        HStack {
-            // 왼쪽: 프로필 영역
-            HStack(spacing: 8) {
-                if let profileUrl = currentUserData?["profileImageUrl"] as? String, !profileUrl.isEmpty {
-                    AsyncImage(url: URL(string: profileUrl)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Image(systemName: "person.circle.fill").foregroundColor(.gray.opacity(0.3))
-                    }
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
-                } else {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .foregroundColor(.gray.opacity(0.3))
-                }
-                
-                Text("\(currentUserData?["lastName"] as? String ?? "")\(currentUserData?["firstName"] as? String ?? "")")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Note: showProfileMenu is in MainView, so we omit this here or pass it as binding
-                // But simplified for now
-                NotificationCenter.default.post(name: NSNotification.Name("ShowProfileMenu"), object: nil)
-            }
-            
-            Spacer()
-            
-            // 오른쪽: Sign 잔액 영역
-            HStack(spacing: 8) {
-                Text("Sign")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 4) {
-                    Text("\(mySignBalance)")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
-                    Image(systemName: "waveform")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { mySignBalance += 100 }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .frame(height: 60)
-    }
-
+    
     // MARK: - Footer (Mock Data / New Match)
     private var footerSection: some View {
         VStack(spacing: 12) {

@@ -21,59 +21,43 @@ struct ChatListView: View {
     @State private var showAcceptAlert: Bool = false
     @State private var showInsufficientSignsAlert: Bool = false
     @State private var userToProcess: [String: Any]? = nil
+    @State private var showBalance: Bool = false
+    
+    // 대화방별 마지막 메시지를 저장할 상태 (캐싱 효과)
+    @State private var lastMessages: [String: String] = [:]
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                VStack(spacing: 0) {
-                    headerView
-                    menuTabsView
-                    
-                    if selectedMenu == 0 {
-                        pendingSignsView
-                    } else {
-                        coSignView
-                    }
-                }
+        ZStack {
+            VStack(spacing: 0) {
+                menuTabsView
                 
-                overlaysView
-            }
-            .background(Color.white)
-            .onAppear {
-                fetchMatchedUsers()
-            }
-            .alert("Cancel Sign", isPresented: $showCancelAlert) {
-                Button("Keep", role: .cancel) { }
-                Button("Cancel Sign", role: .destructive) {
-                    if let user = userToProcess, let uid = user["uid"] as? String {
-                        pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
-                        sentSignUserIds.remove(uid)
-                    }
+                if selectedMenu == 0 {
+                    pendingSignsView
+                } else {
+                    coSignView
                 }
-            } message: {
-                Text("Are you sure you want to cancel sending a sign? 100 Signs will not be refunded.")
             }
+            
+            overlaysView
+        }
+        .background(Color.white)
+        .onAppear {
+            fetchMatchedUsers()
+        }
+        .alert("Cancel Sign", isPresented: $showCancelAlert) {
+            Button("Keep", role: .cancel) { }
+            Button("Cancel Sign", role: .destructive) {
+                if let user = userToProcess, let uid = user["uid"] as? String {
+                    pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
+                    sentSignUserIds.remove(uid)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to cancel sending a sign? 100 Signs will not be refunded.")
         }
     }
     
     // MARK: - Subviews
-    
-    private var headerView: some View {
-        HStack {
-            Text("Chats")
-                .font(.system(size: 24, weight: .bold))
-            Spacer()
-            HStack(spacing: 20) {
-                Image(systemName: "magnifyingglass")
-                Image(systemName: "person.badge.plus")
-                Image(systemName: "music.note")
-                Image(systemName: "gearshape")
-            }
-            .font(.system(size: 20))
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 15)
-    }
     
     private var menuTabsView: some View {
         HStack(spacing: 25) {
@@ -153,8 +137,14 @@ struct ChatListView: View {
     private var activeChatsList: some View {
         List {
             ForEach(matchedUsers.indices, id: \.self) { index in
-                NavigationLink(destination: ChatDetailView(otherUser: matchedUsers[index])) {
-                    ChatRow(user: matchedUsers[index])
+                let user = matchedUsers[index]
+                let uid = user["uid"] as? String ?? ""
+                let displayMessage = lastMessages[uid] ?? (user["lastMessage"] as? String ?? "Match established! Start chatting.")
+                
+                NavigationLink(destination: ChatDetailView(otherUser: user, onMessageSent: { lastMsg in
+                    lastMessages[uid] = lastMsg
+                })) {
+                    ChatRow(user: user, customLastMessage: displayMessage)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -493,6 +483,7 @@ struct PendingProfileOverlay: View {
 
 struct ChatRow: View {
     let user: [String: Any]
+    var customLastMessage: String? = nil
     
     var body: some View {
         HStack(spacing: 15) {
@@ -525,7 +516,7 @@ struct ChatRow: View {
                         .foregroundColor(.secondary)
                 }
                 
-                Text(user["lastMessage"] as? String ?? (user["jobField"] as? String ?? "New Message"))
+                Text(customLastMessage ?? (user["lastMessage"] as? String ?? "Match established! Start chatting."))
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                     .lineLimit(1)

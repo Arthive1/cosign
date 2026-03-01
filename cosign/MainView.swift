@@ -25,47 +25,57 @@ struct MainView: View {
     @State private var selectedTab: Int = 0
     @State private var ignoredIds: Set<String> = []
     
+    // Firestore 읽기 횟수 최적화를 위한 후보군 로컬 캐싱
+    @State private var cachedCandidates: [[String: Any]] = []
+    
+    // 공통 헤더 상태
+    @State private var showBalance: Bool = false
+    
     var body: some View {
         NavigationStack {
-            TabView(selection: $selectedTab) {
-                // 1. Sign 탭 (Find Co-sign)
-                CoSignHomeView(
-                    isProfileComplete: isProfileComplete,
-                    mySignBalance: $mySignBalance,
-                    showProfileSetup: $showProfileSetup,
-                    showIncompleteAlert: $showIncompleteAlert,
-                    isFinding: $isFinding,
-                    matchedUser: $matchedUser,
-                    currentUserData: $currentUserData,
-                    similarityScore: $similarityScore,
-                    showSendSignConfirm: $showSendSignConfirm,
-                    isSignSent: $isSignSent,
-                    sentSignUserIds: $sentSignUserIds,
-                    pendingUsers: $pendingUsers,
-                    fetchMyData: fetchMyData,
-                    startMatchingProcess: startMatchingProcess,
-                    generateMockUsers: generateMockUsers,
-                    isGeneratingData: isGeneratingData
-                )
-                .tabItem {
-                    Image(systemName: "waveform")
-                    Text("Sign")
-                }
-                .tag(0)
+            VStack(spacing: 0) {
+                commonHeader
                 
-                // 2. Chat 탭 (Balloon 아이콘)
-                ChatListView(
-                    currentUserData: currentUserData,
-                    mySignBalance: $mySignBalance,
-                    pendingUsers: $pendingUsers,
-                    receivedUsers: $receivedUsers,
-                    sentSignUserIds: $sentSignUserIds
-                )
-                .tabItem {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                    Text("Chat")
+                TabView(selection: $selectedTab) {
+                    // 1. Sign 탭 (Find Co-sign)
+                    CoSignHomeView(
+                        isProfileComplete: isProfileComplete,
+                        mySignBalance: $mySignBalance,
+                        showProfileSetup: $showProfileSetup,
+                        showIncompleteAlert: $showIncompleteAlert,
+                        isFinding: $isFinding,
+                        matchedUser: $matchedUser,
+                        currentUserData: $currentUserData,
+                        similarityScore: $similarityScore,
+                        showSendSignConfirm: $showSendSignConfirm,
+                        isSignSent: $isSignSent,
+                        sentSignUserIds: $sentSignUserIds,
+                        pendingUsers: $pendingUsers,
+                        fetchMyData: { fetchMyData() },
+                        startMatchingProcess: startMatchingProcess,
+                        generateMockUsers: generateMockUsers,
+                        isGeneratingData: isGeneratingData
+                    )
+                    .tabItem {
+                        Image(systemName: "waveform")
+                        Text("Sign")
+                    }
+                    .tag(0)
+                    
+                    // 2. Chat 탭 (Balloon 아이콘)
+                    ChatListView(
+                        currentUserData: currentUserData,
+                        mySignBalance: $mySignBalance,
+                        pendingUsers: $pendingUsers,
+                        receivedUsers: $receivedUsers,
+                        sentSignUserIds: $sentSignUserIds
+                    )
+                    .tabItem {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                        Text("Chat")
+                    }
+                    .tag(1)
                 }
-                .tag(1)
             }
             .accentColor(Color(red: 0.53, green: 0.75, blue: 0.94))
             .navigationTitle(selectedTab == 0 ? "Sign" : "Chat")
@@ -75,11 +85,11 @@ struct MainView: View {
                 ProfileSetupView(headerTitle: isEditingProfile ? "Change Profile" : "Complete Your Profile")
                     .onDisappear { 
                         isEditingProfile = false 
-                        fetchMyData()
+                        fetchMyData(forceRefresh: true) // 프로필 변경 시에만 서버에서 새로 불러옴
                     }
             }
             .onAppear {
-                fetchMyData()
+                fetchMyData() // 기본 캐시된 값 사용
                 // Mock Received Sign Data
                 if receivedUsers.isEmpty {
                     receivedUsers = [
@@ -88,8 +98,12 @@ struct MainView: View {
                     ]
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileMenu"))) { _ in
-                showProfileMenu = true
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileSetup"))) { _ in
+                isEditingProfile = true
+                showProfileSetup = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LogoutUser"))) { _ in
+                try? Auth.auth().signOut()
             }
             .alert("Profile Incomplete", isPresented: $showIncompleteAlert) {
                 Button("Update Profile") {
@@ -99,20 +113,69 @@ struct MainView: View {
             } message: {
                 Text("Please update your profile first to use this feature.")
             }
-            .confirmationDialog("Profile Menu", isPresented: $showProfileMenu, titleVisibility: .hidden) {
-                Button("Edit Profile") {
-                    isEditingProfile = true
-                    showProfileSetup = true
-                }
-                Button("Log Out", role: .destructive) {
-                    try? Auth.auth().signOut()
-                }
-                Button("Cancel", role: .cancel) { }
-            }
         }
     }
     
-    private func fetchMyData() {
+    // MARK: - Common Header
+    private var commonHeader: some View {
+        HStack {
+            // 왼쪽: 닉네임
+            HStack(spacing: 8) {
+                Text("\(currentUserData?["lastName"] as? String ?? "")\(currentUserData?["firstName"] as? String ?? "")")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+            }
+            .contentShape(Rectangle())
+            
+            Spacer()
+            
+            // 오른쪽: 아이콘들
+            HStack(spacing: 20) {
+                // 사인 아이콘
+                Button(action: {
+                    withAnimation(.spring()) {
+                        showBalance.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        if showBalance {
+                            Text("\(mySignBalance)")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        Image(systemName: "waveform")
+                    }
+                }
+                .foregroundColor(.secondary)
+                
+                // 사람 아이콘 (프로필 수정)
+                Button(action: {
+                    isEditingProfile = true
+                    showProfileSetup = true
+                }) {
+                    Image(systemName: "person.fill")
+                }
+                .foregroundColor(.secondary)
+                
+                // 로그아웃 아이콘
+                Button(action: {
+                    try? Auth.auth().signOut()
+                }) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                }
+                .foregroundColor(.secondary)
+            }
+            .font(.system(size: 20))
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 5)
+        .background(Color.white)
+    }
+    
+    private func fetchMyData(forceRefresh: Bool = false) {
+        // 이미 내 데이터를 불러온 상태이고 강제 새로고침이 아니면 서버 요청 생략 (비용 절감)
+        if !forceRefresh && currentUserData != nil { return }
+        
         guard let uid = Auth.auth().currentUser?.uid else { return }
         Firestore.firestore().collection("users").document(uid).getDocument { snap, _ in
             self.currentUserData = snap?.data()
@@ -123,6 +186,13 @@ struct MainView: View {
         guard let myData = currentUserData else { return }
         isFinding = true
         
+        // 이미 후보군이 캐싱되어 있다면 서버 요청 없이 바로 탐색 시작
+        if !cachedCandidates.isEmpty {
+            self.findBestMatchFromCache(myData: myData)
+            return
+        }
+        
+        // 캐시가 비어있다면, 최초 1회에 한해 최대 100명을 한 번에 가져와 로컬에 저장 (비용 절감)
         let db = Firestore.firestore()
         let myGender = myData["gender"] as? String ?? ""
         let targetGender = (myGender == "Male") ? "Female" : "Male"
@@ -130,47 +200,56 @@ struct MainView: View {
         db.collection("users")
             .whereField("gender", isEqualTo: targetGender)
             .whereField("isProfileComplete", isEqualTo: true)
+            .limit(to: 100)
             .getDocuments { querySnapshot, error in
                 guard let docs = querySnapshot?.documents, !docs.isEmpty else {
                     isFinding = false
                     return
                 }
                 
-                var bestMatch: [String: Any]? = nil
-                var maxSimilarity: Double = -1.0
-                
-                let myVector = Vectorize(myData)
-                
-                for doc in docs {
-                    var otherData = doc.data()
-                    let otherId = doc.documentID
-                    otherData["uid"] = otherId
-                    
-                    if otherId == Auth.auth().currentUser?.uid { continue }
-                    if sentSignUserIds.contains(otherId) { continue }
-                    if ignoredIds.contains(otherId) { continue } // 무시 목록 추가
-                    
-                    let otherVector = Vectorize(otherData)
-                    let sim = cosineSimilarity(myVector, otherVector)
-                    
-                    if sim > maxSimilarity {
-                        maxSimilarity = sim
-                        bestMatch = otherData
-                    }
+                // 가져온 문서들을 로컬 메모리에 캐싱
+                self.cachedCandidates = docs.compactMap { doc in
+                    var data = doc.data()
+                    data["uid"] = doc.documentID
+                    return data
                 }
                 
-                // 2초 뒤에 결과를 반영하여 스피너 UI가 보이도록 딜레이 추가
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation {
-                        if let match = bestMatch, let matchId = match["uid"] as? String {
-                            ignoredIds.insert(matchId) // 현재 매칭된 유저를 무시 목록에 추가 (다음 매칭을 위해)
-                        }
-                        self.matchedUser = bestMatch
-                        self.similarityScore = maxSimilarity
-                        self.isFinding = false
-                    }
-                }
+                self.findBestMatchFromCache(myData: myData)
             }
+    }
+    
+    private func findBestMatchFromCache(myData: [String: Any]) {
+        var bestMatch: [String: Any]? = nil
+        var maxSimilarity: Double = -1.0
+        
+        let myVector = Vectorize(myData)
+        
+        for otherData in cachedCandidates {
+            guard let otherId = otherData["uid"] as? String else { continue }
+            
+            if otherId == Auth.auth().currentUser?.uid { continue }
+            if sentSignUserIds.contains(otherId) { continue }
+            if ignoredIds.contains(otherId) { continue }
+            
+            let otherVector = Vectorize(otherData)
+            let sim = cosineSimilarity(myVector, otherVector)
+            
+            if sim > maxSimilarity {
+                maxSimilarity = sim
+                bestMatch = otherData
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation {
+                if let match = bestMatch, let matchId = match["uid"] as? String {
+                    ignoredIds.insert(matchId)
+                }
+                self.matchedUser = bestMatch
+                self.similarityScore = maxSimilarity
+                self.isFinding = false
+            }
+        }
     }
     
     private func Vectorize(_ data: [String: Any]) -> [Double] {
