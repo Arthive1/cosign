@@ -718,7 +718,7 @@ struct ProfileSetupView: View {
                         .multilineTextAlignment(.center)
                 }
                 Button(action: { showInsufficientSignsAlert = false }) {
-                    Text("Go Back")
+                    Text("Cancel")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -762,7 +762,7 @@ struct ProfileSetupView: View {
                     }
                     
                     Button(action: cancelAction) {
-                        Text("Back")
+                        Text("Cancel")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)

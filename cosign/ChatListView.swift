@@ -77,7 +77,7 @@ struct ChatListView: View {
     private var menuTabsView: some View {
         HStack(spacing: 0) {
             Spacer()
-            tabButton(title: "Pending Signs", tag: 0)
+            tabButton(title: "Pending", tag: 0)
             Spacer()
             tabButton(title: "Co-Sign", tag: 1)
             Spacer()
@@ -99,7 +99,7 @@ struct ChatListView: View {
     private var pendingSignsList: some View {
         List {
             if !pendingUsers.isEmpty {
-                Section(header: Text("Sign Sent").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
+                Section(header: Text("Signs Sent").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
                     ForEach(0..<pendingUsers.count, id: \.self) { index in
                         PendingSignRow(me: currentUserData, other: pendingUsers[index], type: .sent)
                             .listRowInsets(EdgeInsets())
@@ -122,7 +122,7 @@ struct ChatListView: View {
             }
             
             if !receivedUsers.isEmpty {
-                Section(header: Text("Sign Received").font(.system(size: 13, weight: .bold)).foregroundColor(.gray)) {
+                Section(header: Text("Signs Received").font(.system(size: 13, weight: .bold)).foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))) {
                     ForEach(0..<receivedUsers.count, id: \.self) { index in
                         PendingSignRow(me: currentUserData, other: receivedUsers[index], type: .received)
                             .listRowInsets(EdgeInsets())
@@ -268,7 +268,7 @@ struct ChatListView: View {
                 
                 HStack(spacing: 15) {
                     Button(action: { showAcceptAlert = false }) {
-                        Text("Back")
+                        Text("Cancel")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)
@@ -324,7 +324,7 @@ struct ChatListView: View {
                 
                 HStack(spacing: 15) {
                     Button(action: { showInsufficientSignsAlert = false }) {
-                        Text("Back")
+                        Text("Cancel")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)
@@ -437,7 +437,7 @@ struct PendingSignRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(other["nickname"] as? String ?? "User")")
                     .font(.system(size: 16, weight: .bold))
-                Text(type == .sent ? "Sent Sign" : "Received Sign")
+                Text(type == .sent ? "Signs Sent" : "Signs Received")
                     .font(.system(size: 12))
                     .foregroundColor(type == .sent ? .secondary : Color(red: 0.53, green: 0.75, blue: 0.94))
             }
@@ -501,7 +501,7 @@ struct PendingProfileOverlay: View {
                 
                 VStack(spacing: 12) {
                     if isReceived {
-                        // Received: Deny(Orange) | Send Sign(Blue)
+                        // Received: Decline(Orange) | Send Sign(Blue)
                         HStack(spacing: 15) {
                             Button(action: {
                                 withAnimation {
@@ -509,7 +509,7 @@ struct PendingProfileOverlay: View {
                                     onDeny()
                                 }
                             }) {
-                                Text("Deny")
+                                Text("Decline")
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.white)
                                     .padding(.vertical, 14)
@@ -532,9 +532,9 @@ struct PendingProfileOverlay: View {
                             }
                         }
                         
-                        // Close (Full width)
+                        // Cancel (Full width)
                         Button(action: { isShowing = false }) {
-                            Text("Close")
+                            Text("Cancel")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.primary)
                                 .padding(.vertical, 14)
@@ -543,10 +543,10 @@ struct PendingProfileOverlay: View {
                                 .cornerRadius(12)
                         }
                     } else {
-                        // Sent: Close | Cancel(Orange)
+                        // Sent: Cancel | Revoke(Orange)? Or just Cancel
                         HStack(spacing: 15) {
                             Button(action: { isShowing = false }) {
-                                Text("Close")
+                                Text("Cancel")
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.primary)
                                     .padding(.vertical, 14)
@@ -561,7 +561,7 @@ struct PendingProfileOverlay: View {
                                     onCancel()
                                 }
                             }) {
-                                Text("Cancel")
+                                Text("Revoke")
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.white)
                                     .padding(.vertical, 14)
