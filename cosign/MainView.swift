@@ -21,6 +21,7 @@ struct MainView: View {
     @State private var isSignSent: Bool = false
     @State private var sentSignUserIds: Set<String> = []
     @State private var pendingUsers: [[String: Any]] = []
+    @State private var receivedUsers: [[String: Any]] = []
     @State private var selectedTab: Int = 0
     
     var body: some View {
@@ -54,7 +55,9 @@ struct MainView: View {
                 // 2. Chat 탭 (Balloon 아이콘)
                 ChatListView(
                     currentUserData: currentUserData,
+                    mySignBalance: $mySignBalance,
                     pendingUsers: $pendingUsers,
+                    receivedUsers: $receivedUsers,
                     sentSignUserIds: $sentSignUserIds
                 )
                 .tabItem {
@@ -76,6 +79,13 @@ struct MainView: View {
             }
             .onAppear {
                 fetchMyData()
+                // Mock Received Sign Data
+                if receivedUsers.isEmpty {
+                    receivedUsers = [
+                        ["lastName": "Lee", "firstName": "Seulgi", "jobField": "Designer", "uid": "mock_rec_1", "profileImageUrl": ""],
+                        ["lastName": "Park", "firstName": "Chorong", "jobField": "Teacher", "uid": "mock_rec_2", "profileImageUrl": ""]
+                    ]
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileMenu"))) { _ in
                 showProfileMenu = true
