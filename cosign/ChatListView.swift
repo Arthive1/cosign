@@ -22,6 +22,8 @@ struct ChatListView: View {
     @State private var showInsufficientSignsAlert: Bool = false
     @State private var userToProcess: [String: Any]? = nil
     @State private var showBalance: Bool = false
+    @State private var showNudgeAlert: Bool = false
+    @State private var showInsufficientNudgeAlert: Bool = false
     
     // 대화방별 마지막 메시지를 저장할 상태 (캐싱 효과)
     @State private var lastMessages: [String: String] = [:]
@@ -231,6 +233,14 @@ struct ChatListView: View {
                         pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
                         sentSignUserIds.remove(uid)
                     }
+                },
+                onNudge: {
+                    userToProcess = other
+                    if mySignBalance >= 200 {
+                        showNudgeAlert = true
+                    } else {
+                        showInsufficientNudgeAlert = true
+                    }
                 }
             )
         }
@@ -243,6 +253,14 @@ struct ChatListView: View {
         // 사인 부족 알림 팝업
         if showInsufficientSignsAlert {
             insufficientSignsOverlay
+        }
+        
+        if showNudgeAlert {
+            nudgeConfirmationOverlay
+        }
+        
+        if showInsufficientNudgeAlert {
+            insufficientNudgeOverlay
         }
     }
     
@@ -296,6 +314,132 @@ struct ChatListView: View {
             .cornerRadius(25)
             .shadow(radius: 20)
             .padding(.horizontal, 40)
+        }
+    }
+    
+    private var nudgeConfirmationOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showNudgeAlert = false }
+            
+            VStack(spacing: 25) {
+                VStack(spacing: 12) {
+                    Text("Start Conversation?")
+                        .font(.system(size: 17, weight: .bold))
+                    Text("Starting a conversation with this person will deduct 200 Signs. Would you like to proceed?")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                HStack(spacing: 15) {
+                    Button(action: { showNudgeAlert = false }) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 65)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: {
+                        processNudge()
+                        showNudgeAlert = false
+                    }) {
+                        Text("Start")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 65)
+                            .background(Color.blue)
+                            .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(25)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+    
+    private var insufficientNudgeOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showInsufficientNudgeAlert = false }
+            
+            VStack(spacing: 25) {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.orange)
+                    
+                    Text("Insufficient Signs")
+                        .font(.system(size: 18, weight: .bold))
+                    
+                    Text("You need at least 200 Signs to Nudge this person.\nWould you like to top up?")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                HStack(spacing: 15) {
+                    Button(action: { showInsufficientNudgeAlert = false }) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: {
+                        mySignBalance += 500
+                        showInsufficientNudgeAlert = false
+                    }) {
+                        Text("Top Up")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color.blue)
+                            .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(25)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+    
+    private func processNudge() {
+        guard let user = userToProcess, let uid = user["uid"] as? String else { return }
+        
+        if mySignBalance >= 200 {
+            mySignBalance -= 200
+            pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
+            sentSignUserIds.remove(uid)
+            
+            var newUser = user
+            newUser["lastMessage"] = "You nudged and started a conversation!"
+            matchedUsers.insert(newUser, at: 0)
+            
+            withAnimation {
+                selectedMenu = 1
+                showPendingDetail = false
+            }
         }
     }
     
@@ -489,6 +633,7 @@ struct PendingProfileOverlay: View {
     var onSendSign: () -> Void = {}
     var onDeny: () -> Void = {}
     var onCancel: () -> Void = {}
+    var onNudge: () -> Void = {}
     
     var body: some View {
         ZStack {
@@ -543,18 +688,8 @@ struct PendingProfileOverlay: View {
                                 .cornerRadius(12)
                         }
                     } else {
-                        // Sent: Cancel | Revoke(Orange)? Or just Cancel
+                        // Sent: Revoke(Orange) | Nudge(Blue)
                         HStack(spacing: 15) {
-                            Button(action: { isShowing = false }) {
-                                Text("Cancel")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.primary)
-                                    .padding(.vertical, 14)
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(white: 0.95))
-                                    .cornerRadius(12)
-                            }
-                            
                             Button(action: {
                                 withAnimation {
                                     isShowing = false
@@ -569,6 +704,30 @@ struct PendingProfileOverlay: View {
                                     .background(Color.orange.opacity(0.9))
                                     .cornerRadius(12)
                             }
+                            
+                            Button(action: {
+                                isShowing = false
+                                onNudge()
+                            }) {
+                                Text("Nudge")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.blue)
+                                    .cornerRadius(12)
+                            }
+                        }
+                        
+                        // Cancel (Full width)
+                        Button(action: { isShowing = false }) {
+                            Text("Cancel")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.primary)
+                                .padding(.vertical, 14)
+                                .frame(maxWidth: .infinity)
+                                .background(Color(white: 0.95))
+                                .cornerRadius(12)
                         }
                     }
                 }

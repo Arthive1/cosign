@@ -257,6 +257,7 @@ struct CoSignHomeView: View {
                             showSendSignConfirm = false
                         } else {
                             showSendSignConfirm = false
+                            showInsufficientSignsAlert = true
                         }
                     }) {
                         Text("Send")
@@ -303,7 +304,7 @@ struct CoSignHomeView: View {
                 
                 HStack(spacing: 15) {
                     Button(action: { showInsufficientSignsAlert = false }) {
-                        Text("Back")
+                        Text("Cancel")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)

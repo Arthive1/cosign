@@ -717,14 +717,29 @@ struct ProfileSetupView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                Button(action: { showInsufficientSignsAlert = false }) {
-                    Text("Cancel")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(Color.orange)
-                        .cornerRadius(15)
+                HStack(spacing: 15) {
+                    Button(action: { showInsufficientSignsAlert = false }) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: {
+                        mySignBalance += 500
+                        showInsufficientSignsAlert = false
+                    }) {
+                        Text("Top Up")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                            .cornerRadius(15)
+                    }
                 }
             }
             .padding(30)
