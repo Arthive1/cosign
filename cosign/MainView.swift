@@ -110,7 +110,7 @@ struct MainView: View {
                     }
                     .padding(.bottom, 5)
                 } else {
-                    Text("Sign Sent!")
+                    Text("Co-sign Found!")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.gray)
                         .padding(.bottom, 10)
@@ -235,10 +235,10 @@ struct MainView: View {
             
             HStack(spacing: 0) {
                 // 나 (왼쪽)
-                ProfileComparisonColumn(title: "Me", data: myData, isMatch: false)
+                ProfileComparisonColumn(title: "Me", data: myData, isMatch: false, showPhoneNumber: isSignSent)
                 
                 // 상대방 (오른쪽)
-                ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true)
+                ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true, showPhoneNumber: isSignSent)
             }
         }
         .background(Color.white)
@@ -390,6 +390,7 @@ struct MainView: View {
                 "middleSchool": "Mock Middle",
                 "highSchool": "Mock High",
                 "university": "Mock Univ",
+                "phoneNumber": "010-\(Int.random(in: 1000...9999))-\(Int.random(in: 1000...9999))",
                 "isProfileComplete": true,
                 "profileImageUrl": ""
             ]
@@ -466,6 +467,7 @@ struct ProfileComparisonColumn: View {
     let title: String
     let data: [String: Any]
     let isMatch: Bool
+    let showPhoneNumber: Bool
     
     var body: some View {
         VStack(spacing: 20) {
@@ -501,6 +503,14 @@ struct ProfileComparisonColumn: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                
+                if showPhoneNumber {
+                    Text(data["phoneNumber"] as? String ?? "010-0000-0000")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .padding(.bottom, 0) // VStack의 spacing(12)이 기본 적용됨
+                }
             }
             .padding(.bottom, 25)
         }
