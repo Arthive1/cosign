@@ -7,6 +7,7 @@ struct MainView: View {
     @State private var isFinding: Bool = false
     @State private var showProfileSetup: Bool = false
     @State private var showIncompleteAlert: Bool = false
+    @AppStorage("mySignBalance") private var mySignBalance: Int = 0
     
     var body: some View {
         NavigationStack {
@@ -16,6 +17,32 @@ struct MainView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 30) {
+                    GeometryReader { geo in
+                        ZStack {
+                            Text("My Sign")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .position(x: geo.size.width / 3, y: geo.size.height / 2)
+                            
+                            HStack(spacing: 4) {
+                                Text("\(mySignBalance)")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 2) {
+                                mySignBalance += 100
+                            }
+                            .position(x: geo.size.width * 2 / 3, y: geo.size.height / 2)
+                        }
+                    }
+                    .frame(height: 20)
+                    .padding(.top, 10)
+                    
                     Spacer()
                     
                     // 프로필 업데이트 권장 박스 (미완료 시에만 표시)
@@ -50,34 +77,39 @@ struct MainView: View {
                     }
                     
                     // 핵심 기능: Find Co-sign 버튼
-                    Button(action: {
-                        if isProfileComplete {
-                            isFinding = true
-                            print("Finding similar users...")
-                        } else {
-                            showIncompleteAlert = true
+                    GeometryReader { geo in
+                        Button(action: {
+                            if isProfileComplete {
+                                isFinding = true
+                                print("Finding similar users...")
+                            } else {
+                                showIncompleteAlert = true
+                            }
+                        }) {
+                            VStack(spacing: 20) {
+                                Image(systemName: "person.2.circle.fill")
+                                    .font(.system(size: geo.size.width * 0.25))
+                                    .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                                
+                                Text("Find Co-sign")
+                                    .font(.system(size: geo.size.width * 0.1, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                            }
+                            .frame(width: geo.size.width, height: geo.size.width)
+                            .background(
+                                RoundedRectangle(cornerRadius: 40)
+                                    .fill(Color.white)
+                                    .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 10)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 40)
+                                    .stroke(Color(red: 0.67, green: 0.82, blue: 0.94).opacity(0.3), lineWidth: 2)
+                            )
                         }
-                    }) {
-                        VStack(spacing: 20) {
-                            Image(systemName: "person.2.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
-                            
-                            Text("Find Co-sign")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
-                        }
-                        .frame(width: 250, height: 250)
-                        .background(
-                            RoundedRectangle(cornerRadius: 40)
-                                .fill(Color.white)
-                                .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 10)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 40)
-                                .stroke(Color(red: 0.67, green: 0.82, blue: 0.94).opacity(0.3), lineWidth: 2)
-                        )
                     }
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(1, contentMode: .fit)
+                    .padding(.horizontal, 30)
                     .scaleEffect(isFinding ? 0.95 : 1.0)
                     .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isFinding)
                     

@@ -69,17 +69,10 @@ struct ProfileSetupView: View {
     // 섹션 완료 상태 (로직으로 판단)
     var isProfileDone: Bool { !firstName.isEmpty && !lastName.isEmpty && !birthday.isEmpty && selectedGender != "Select" }
     var isEconomicsDone: Bool { employmentType != "Select" && jobField != "Select" }
-    var isEducationDone: Bool {
-        let items = [
-            (isElementaryChecked, elementarySchool),
-            (isMiddleChecked, middleSchool),
-            (isHighChecked, highSchool),
-            (isUniversityChecked, university),
-            (isGraduateChecked, graduateSchool)
-        ]
-        let checkedItems = items.filter { $0.0 }
-        return !checkedItems.isEmpty && checkedItems.allSatisfy { !$0.1.isEmpty }
-    }
+    var isAnySectionDone: Bool { isProfileDone || isEconomicsDone || isEducationDone || isHobbiesDone }
+    var isAllDone: Bool { isProfileDone && isEconomicsDone && isEducationDone && isHobbiesDone }
+    
+    var isEducationDone: Bool { !elementarySchool.isEmpty }
     var isHobbiesDone: Bool { !selectedHobbies.isEmpty }
     
     // 학력 입력 관련 추가 상태
@@ -91,9 +84,9 @@ struct ProfileSetupView: View {
         var id: String { self.rawValue }
     }
     
-    var isAllDone: Bool { isProfileDone && isEconomicsDone && isEducationDone && isHobbiesDone }
-    
     @State private var isLoading: Bool = false
+    @AppStorage("mySignBalance") private var mySignBalance: Int = 0
+    @State private var wasSectionDoneBeforeEditing: Bool = false
     
     enum SetupSection: String, Identifiable {
         case profile = "Profile", economics = "Economics", education = "Education", hobbies = "Hobbies"
@@ -120,10 +113,10 @@ struct ProfileSetupView: View {
                     
                     // 대시보드 그리드
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 20), GridItem(.flexible(), spacing: 20)], spacing: 20) {
-                        SectionCard(type: .profile, isDone: isProfileDone) { editingSection = .profile }
-                        SectionCard(type: .economics, isDone: isEconomicsDone) { editingSection = .economics }
-                        SectionCard(type: .education, isDone: isEducationDone) { editingSection = .education }
-                        SectionCard(type: .hobbies, isDone: isHobbiesDone) { editingSection = .hobbies }
+                        SectionCard(type: .profile, isDone: isProfileDone) { prepareEditing(.profile) }
+                        SectionCard(type: .economics, isDone: isEconomicsDone) { prepareEditing(.economics) }
+                        SectionCard(type: .education, isDone: isEducationDone) { prepareEditing(.education) }
+                        SectionCard(type: .hobbies, isDone: isHobbiesDone) { prepareEditing(.hobbies) }
                     }
                     .padding(.horizontal, 30)
                     
@@ -138,11 +131,11 @@ struct ProfileSetupView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 18)
-                            .background(isAllDone ? Color(red: 0.53, green: 0.75, blue: 0.94) : Color.gray.opacity(0.3))
+                            .background(Color(red: 0.53, green: 0.75, blue: 0.94))
                             .cornerRadius(20)
-                            .shadow(color: isAllDone ? Color(red: 0.53, green: 0.75, blue: 0.94).opacity(0.3) : .clear, radius: 10, x: 0, y: 5)
+                            .shadow(color: Color(red: 0.53, green: 0.75, blue: 0.94).opacity(0.3), radius: 10, x: 0, y: 5)
                     }
-                    .disabled(!isAllDone || isLoading)
+                    .disabled(isLoading)
                     .padding(.horizontal, 30)
                     .padding(.bottom, 30)
                 }
@@ -151,6 +144,9 @@ struct ProfileSetupView: View {
                     Color.black.opacity(0.15).ignoresSafeArea()
                     ProgressView("Finalizing...").padding().background(Color.white).cornerRadius(15).shadow(radius: 10)
                 }
+            }
+            .onAppear {
+                fetchExistingProfile()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -339,9 +335,30 @@ struct ProfileSetupView: View {
             .padding(30)
         }
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Back") {
+                    editingSection = nil
+                }
+                .fontWeight(.bold)
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Save") { editingSection = nil }
-                    .fontWeight(.bold)
+                Button("Save") {
+                    let isDoneNow: Bool
+                    switch section {
+                    case .profile: isDoneNow = isProfileDone
+                    case .economics: isDoneNow = isEconomicsDone
+                    case .education: isDoneNow = isEducationDone
+                    case .hobbies: isDoneNow = isHobbiesDone
+                    }
+                    
+                    if !wasSectionDoneBeforeEditing && isDoneNow {
+                        mySignBalance += 100
+                    }
+                    
+                    editingSection = nil
+                }
+                .fontWeight(.bold)
             }
         }
     }
@@ -514,7 +531,7 @@ struct ProfileSetupView: View {
             "mbti": selectedMBTI, "hobbies": Array(selectedHobbies), "employmentType": employmentType,
             "jobField": jobField, "annualIncome": annualIncome, "liquidAssets": liquidAssets, "fixedAssets": fixedAssets,
             "elementarySchool": elementarySchool, "middleSchool": middleSchool, "highSchool": highSchool,
-            "university": university, "graduateSchool": graduateSchool, "isProfileComplete": true
+            "university": university, "graduateSchool": graduateSchool, "isProfileComplete": isAllDone
         ]
         if !imageUrl.isEmpty { updateData["profileImageUrl"] = imageUrl }
         
@@ -522,5 +539,57 @@ struct ProfileSetupView: View {
             isLoading = false
             dismiss()
         }
+    }
+    
+    private func fetchExistingProfile() {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        isLoading = true
+        
+        let db = Firestore.firestore()
+        db.collection("users").document(uid).getDocument { snapshot, error in
+            isLoading = false
+            if let data = snapshot?.data() {
+                // Profile
+                self.lastName = data["lastName"] as? String ?? ""
+                self.firstName = data["firstName"] as? String ?? ""
+                self.birthday = data["birthday"] as? String ?? ""
+                self.selectedGender = data["gender"] as? String ?? "Select"
+                self.selectedNationality = data["nationality"] as? String ?? "Korea, Republic of"
+                self.height = data["height"] as? String ?? ""
+                self.weight = data["weight"] as? String ?? ""
+                self.selectedBloodType = data["bloodType"] as? String ?? "Select"
+                self.selectedMBTI = data["mbti"] as? String ?? "Select"
+                
+                // Economics
+                self.employmentType = data["employmentType"] as? String ?? "Select"
+                self.jobField = data["jobField"] as? String ?? "Select"
+                self.annualIncome = data["annualIncome"] as? String ?? ""
+                self.liquidAssets = data["liquidAssets"] as? String ?? ""
+                self.fixedAssets = data["fixedAssets"] as? String ?? ""
+                
+                // Education
+                self.elementarySchool = data["elementarySchool"] as? String ?? ""
+                self.middleSchool = data["middleSchool"] as? String ?? ""
+                self.highSchool = data["highSchool"] as? String ?? ""
+                self.university = data["university"] as? String ?? ""
+                self.graduateSchool = data["graduateSchool"] as? String ?? ""
+                
+                // Hobbies
+                if let hobbies = data["hobbies"] as? [String] {
+                    self.selectedHobbies = Set(hobbies)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func prepareEditing(_ section: SetupSection) {
+        switch section {
+        case .profile: wasSectionDoneBeforeEditing = isProfileDone
+        case .economics: wasSectionDoneBeforeEditing = isEconomicsDone
+        case .education: wasSectionDoneBeforeEditing = isEducationDone
+        case .hobbies: wasSectionDoneBeforeEditing = isHobbiesDone
+        }
+        editingSection = section
     }
 }
