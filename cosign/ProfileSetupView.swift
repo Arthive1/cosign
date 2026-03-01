@@ -28,6 +28,15 @@ struct ProfileSetupView: View {
     @State private var avatarImage: Image?
     @State private var avatarData: Data?
     
+    // --- 1-1. Address 관련 ---
+    @State private var address: String = ""
+    @State private var latitude: Double = 0.0
+    @State private var longitude: Double = 0.0
+    @State private var showAddressSearch: Bool = false
+    @State private var addressSearchText: String = ""
+    @State private var addressSuggestions: [MKMapItem] = []
+    @State private var isSearchingAddress: Bool = false
+    
     // --- 2. Economics 관련 ---
     @State private var employmentType: String = "Select"
     @State private var jobField: String = "Select"
@@ -70,7 +79,10 @@ struct ProfileSetupView: View {
     }
     
     // 섹션 완료 상태 (로직으로 판단)
-    var isProfileDone: Bool { !firstName.isEmpty && !lastName.isEmpty && !nickname.isEmpty && !birthday.isEmpty && selectedGender != "Select" }
+    var isProfileDone: Bool { 
+        !firstName.isEmpty && !lastName.isEmpty && !nickname.isEmpty && !birthday.isEmpty && 
+        selectedGender != "Select" && !address.isEmpty 
+    }
     var isEconomicsDone: Bool { employmentType != "Select" && jobField != "Select" }
     var isAnySectionDone: Bool { isProfileDone || isEconomicsDone || isEducationDone || isHobbiesDone }
     var isAllDone: Bool { isProfileDone && isEconomicsDone && isEducationDone && isHobbiesDone }
@@ -196,11 +208,96 @@ struct ProfileSetupView: View {
                     EducationNameInputView(field: field)
                         .presentationDetents([.medium, .large])
                 }
+                .sheet(isPresented: $showAddressSearch) {
+                    AddressInputView()
+                        .presentationDetents([.medium, .large])
+                }
                 .alert("Incomplete Sequence", isPresented: $showEducationAlert) {
                     Button("OK", role: .cancel) { }
                 } message: {
                     Text("Please input the previous education institution first.")
                 }
+            }
+        }
+    }
+    
+    // MARK: - Address Input View
+    func AddressInputView() -> some View {
+        return VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Search Address")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                Spacer()
+                Button(action: { showAddressSearch = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray.opacity(0.3))
+                        .font(.title2)
+                }
+            }
+            .padding(.horizontal, 30)
+            .padding(.top, 25)
+            .padding(.bottom, 15)
+            
+            // Search Bar
+            CustomTextField(placeholder: "Enter your address...", text: $addressSearchText)
+                .padding(.horizontal, 30)
+                .onChange(of: addressSearchText) { oldValue, newValue in
+                    if newValue.count > 1 {
+                        searchAddress(query: newValue)
+                    } else {
+                        addressSuggestions = []
+                    }
+                }
+            
+            if isSearchingAddress {
+                ProgressView()
+                    .padding(.top, 20)
+            }
+            
+            // Suggestions List
+            if !addressSuggestions.isEmpty {
+                List(addressSuggestions, id: \.self) { item in
+                    Button(action: {
+                        self.address = item.placemark.title ?? (item.name ?? "")
+                        self.latitude = item.placemark.coordinate.latitude
+                        self.longitude = item.placemark.coordinate.longitude
+                        addressSuggestions = []
+                        addressSearchText = ""
+                        showAddressSearch = false
+                    }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name ?? "Unknown Place")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                            if let addr = item.placemark.title {
+                                Text(addr)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                .listStyle(.plain)
+                .padding(.top, 10)
+            }
+            
+            Spacer()
+        }
+    }
+    
+    private func searchAddress(query: String) {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        
+        isSearchingAddress = true
+        let search = MKLocalSearch(request: request)
+        search.start { response, error in
+            isSearchingAddress = false
+            if let response = response {
+                self.addressSuggestions = response.mapItems
             }
         }
     }
@@ -499,6 +596,23 @@ struct ProfileSetupView: View {
             }
             labeledField("Nickname", CustomTextField(placeholder: "Nickname", text: $nickname))
             labeledField("Birthday (YYYYMMDD)", CustomTextField(placeholder: "Birthday", text: $birthday)).keyboardType(.numberPad)
+            
+            labeledField("Address", 
+                Button(action: { showAddressSearch = true }) {
+                    HStack {
+                        Text(address.isEmpty ? "Search Address" : address)
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(address.isEmpty ? .gray.opacity(0.5) : .primary)
+                        Spacer()
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                    .background(Color(red: 0.96, green: 0.96, blue: 0.98))
+                    .cornerRadius(12)
+                }
+            )
+            
             HStack(spacing: 15) {
                 labeledField("Gender", setupSelectionField(title: selectedGender == "Select" ? "Select" : selectedGender, field: .gender))
                 labeledField("Nationality", setupSelectionField(title: selectedNationality, field: .nationality))
@@ -648,7 +762,8 @@ struct ProfileSetupView: View {
             "mbti": selectedMBTI, "hobbies": Array(selectedHobbies), "employmentType": employmentType,
             "jobField": jobField, "annualIncome": annualIncome, "liquidAssets": liquidAssets, "fixedAssets": fixedAssets,
             "elementarySchool": elementarySchool, "middleSchool": middleSchool, "highSchool": highSchool,
-            "university": university, "graduateSchool": graduateSchool, "isProfileComplete": isAllDone
+            "university": university, "graduateSchool": graduateSchool, "isProfileComplete": isAllDone,
+            "address": address, "latitude": latitude, "longitude": longitude
         ]
         if !imageUrl.isEmpty { updateData["profileImageUrl"] = imageUrl }
         
@@ -677,6 +792,9 @@ struct ProfileSetupView: View {
                 self.weight = data["weight"] as? String ?? ""
                 self.selectedBloodType = data["bloodType"] as? String ?? "Select"
                 self.selectedMBTI = data["mbti"] as? String ?? "Select"
+                self.address = data["address"] as? String ?? ""
+                self.latitude = data["latitude"] as? Double ?? 0.0
+                self.longitude = data["longitude"] as? Double ?? 0.0
                 
                 // Economics
                 self.employmentType = data["employmentType"] as? String ?? "Select"

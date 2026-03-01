@@ -2,6 +2,7 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import CoreLocation
 
 struct MainView: View {
     let isProfileComplete: Bool
@@ -241,6 +242,17 @@ struct MainView: View {
             if ignoredIds.contains(otherId) { continue }
             
             let otherVector = Vectorize(otherData)
+            
+            // 거리 필터링 (30km 이내)
+            let myLat = myData["latitude"] as? Double ?? 0.0
+            let myLon = myData["longitude"] as? Double ?? 0.0
+            let otherLat = otherData["latitude"] as? Double ?? 0.0
+            let otherLon = otherData["longitude"] as? Double ?? 0.0
+            
+            let distance = calculateDistance(lat1: myLat, lon1: myLon, lat2: otherLat, lon2: otherLon)
+            
+            if distance > 30000 { continue } // 30km 초과 시 무시
+            
             let sim = cosineSimilarity(myVector, otherVector)
             
             if sim > maxSimilarity {
@@ -259,6 +271,12 @@ struct MainView: View {
                 self.isFinding = false
             }
         }
+    }
+    
+    private func calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+        let p1 = CLLocation(latitude: lat1, longitude: lon1)
+        let p2 = CLLocation(latitude: lat2, longitude: lon2)
+        return p1.distance(from: p2) // 단위: 미터(m)
     }
     
     private func Vectorize(_ data: [String: Any]) -> [Double] {
@@ -348,7 +366,9 @@ struct MainView: View {
                 "university": "Mock Univ",
                 "phoneNumber": "010-\(Int.random(in: 1000...9999))-\(Int.random(in: 1000...9999))",
                 "isProfileComplete": true,
-                "profileImageUrl": ""
+                "profileImageUrl": "",
+                "latitude": 37.5665 + Double.random(in: -0.5...0.5), // 서울 근교 임의 좌표
+                "longitude": 126.9780 + Double.random(in: -0.5...0.5)
             ]
             db.collection("users").document(UUID().uuidString).setData(data) { _ in group.leave() }
         }
