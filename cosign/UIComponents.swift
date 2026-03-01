@@ -66,8 +66,8 @@ struct ProfileComparisonColumn: View {
             .padding(.horizontal, 10)
             
             VStack(spacing: 12) {
-                InfoLabel(text: "\(data["lastName"] as? String ?? "")\(data["firstName"] as? String ?? "")", icon: "person", isBold: true)
-                InfoLabel(text: data["birthday"] as? String ?? "Unknown", icon: "calendar")
+                InfoLabel(text: data["nickname"] as? String ?? "User", icon: "person", isBold: true)
+                InfoLabel(text: String((data["birthday"] as? String ?? "Unknown").prefix(4)), icon: "calendar")
                 InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
                 InfoLabel(text: "\(data["weight"] as? String ?? "0")kg", icon: "scalemass")
                 InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")

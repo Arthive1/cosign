@@ -304,6 +304,9 @@ struct MainView: View {
         let db = Firestore.firestore()
         let lastNames = ["Kim", "Lee", "Park", "Choi", "Jung", "Kang", "Cho", "Yoon"]
         let firstNames = ["Minsoo", "Jiho", "Sooeyeon", "Yujin", "Donghyun", "Seojun", "Hayun", "Jiwoo"]
+        let nickPrefix = ["Happy", "Cool", "Sweet", "Smart", "Brave", "Kind", "Calm", "Dreamy"]
+        let nickSuffix = ["Lion", "Tiger", "Rabbit", "Eagle", "Panda", "Fox", "Bear", "Wolf"]
+        
         let nationalities = ["Korea, Republic of", "USA", "Japan", "China", "Canada"]
         let jobs = ["IT & Tech", "Finance", "Medical", "Education", "Arts", "Service"]
         let mbtis = ["INTJ", "ENFP", "INFJ", "ENTP", "ISTJ", "ISFP", "ESTJ", "ESFJ"]
@@ -316,6 +319,7 @@ struct MainView: View {
             let data: [String: Any] = [
                 "lastName": lastNames.randomElement()!,
                 "firstName": firstNames.randomElement()!,
+                "nickname": "\(nickPrefix.randomElement()!)\(nickSuffix.randomElement()!)",
                 "birthday": "199\(Int.random(in: 0...9))\(String(format: "%02d", Int.random(in: 1...12)))\(String(format: "%02d", Int.random(in: 1...28)))",
                 "gender": isMale ? "Male" : "Female",
                 "nationality": nationalities.randomElement()!,

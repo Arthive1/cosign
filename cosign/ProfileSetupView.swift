@@ -393,28 +393,34 @@ struct ProfileSetupView: View {
                 }
             }
             
-            HStack { CustomTextField(placeholder: "Last Name", text: $lastName); CustomTextField(placeholder: "First Name", text: $firstName) }
-            CustomTextField(placeholder: "Nickname", text: $nickname)
-            CustomTextField(placeholder: "Birthday (YYYYMMDD)", text: $birthday).keyboardType(.numberPad)
-            HStack {
-                setupSelectionField(title: selectedGender == "Select" ? "Gender" : selectedGender, field: .gender)
-                setupSelectionField(title: selectedNationality, field: .nationality)
+            HStack(spacing: 15) {
+                labeledField("Last Name", CustomTextField(placeholder: "Last Name", text: $lastName))
+                labeledField("First Name", CustomTextField(placeholder: "First Name", text: $firstName))
             }
-            HStack { CustomTextField(placeholder: "Height (cm)", text: $height).keyboardType(.numberPad); CustomTextField(placeholder: "Weight (kg)", text: $weight).keyboardType(.numberPad) }
-            HStack {
-                setupSelectionField(title: selectedBloodType == "Select" ? "Blood" : "Type \(selectedBloodType)", field: .blood)
-                setupSelectionField(title: selectedMBTI == "Select" ? "MBTI" : selectedMBTI, field: .mbti)
+            labeledField("Nickname", CustomTextField(placeholder: "Nickname", text: $nickname))
+            labeledField("Birthday (YYYYMMDD)", CustomTextField(placeholder: "Birthday", text: $birthday)).keyboardType(.numberPad)
+            HStack(spacing: 15) {
+                labeledField("Gender", setupSelectionField(title: selectedGender == "Select" ? "Select" : selectedGender, field: .gender))
+                labeledField("Nationality", setupSelectionField(title: selectedNationality, field: .nationality))
+            }
+            HStack(spacing: 15) {
+                labeledField("Height (cm)", CustomTextField(placeholder: "Height", text: $height)).keyboardType(.numberPad)
+                labeledField("Weight (kg)", CustomTextField(placeholder: "Weight", text: $weight)).keyboardType(.numberPad)
+            }
+            HStack(spacing: 15) {
+                labeledField("Blood Type", setupSelectionField(title: selectedBloodType == "Select" ? "Select" : "Type \(selectedBloodType)", field: .blood))
+                labeledField("MBTI", setupSelectionField(title: selectedMBTI == "Select" ? "Select" : selectedMBTI, field: .mbti))
             }
         }
     }
     
     var economicsForm: some View {
         VStack(spacing: 15) {
-            setupSelectionField(title: employmentType == "Select" ? "Employment Status" : employmentType, field: .employment)
-            setupSelectionField(title: jobField == "Select" ? "Job Field" : jobField, field: .jobField)
-            CustomTextField(placeholder: "Annual Income ($)", text: $annualIncome).keyboardType(.numberPad)
-            CustomTextField(placeholder: "Liquid Assets ($)", text: $liquidAssets).keyboardType(.numberPad)
-            CustomTextField(placeholder: "Fixed Assets ($)", text: $fixedAssets).keyboardType(.numberPad)
+            labeledField("Employment Status", setupSelectionField(title: employmentType == "Select" ? "Select" : employmentType, field: .employment))
+            labeledField("Job Field", setupSelectionField(title: jobField == "Select" ? "Select" : jobField, field: .jobField))
+            labeledField("Annual Income ($)", CustomTextField(placeholder: "Income", text: $annualIncome)).keyboardType(.numberPad)
+            labeledField("Liquid Assets ($)", CustomTextField(placeholder: "Liquid Assets", text: $liquidAssets)).keyboardType(.numberPad)
+            labeledField("Fixed Assets ($)", CustomTextField(placeholder: "Fixed Assets", text: $fixedAssets)).keyboardType(.numberPad)
         }
     }
     
@@ -594,6 +600,16 @@ struct ProfileSetupView: View {
         }
     }
     
+    private func labeledField<V: View>(_ label: String, _ content: V) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+                .padding(.leading, 4)
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
     
     // MARK: - Bonus Popup
     private var bonusPopupOverlay: some View {

@@ -178,6 +178,17 @@ struct ChatListView: View {
                     } else {
                         showInsufficientSignsAlert = true
                     }
+                },
+                onDeny: {
+                    if let uid = other["uid"] as? String {
+                        receivedUsers.removeAll(where: { ($0["uid"] as? String) == uid })
+                    }
+                },
+                onCancel: {
+                    if let uid = other["uid"] as? String {
+                        pendingUsers.removeAll(where: { ($0["uid"] as? String) == uid })
+                        sentSignUserIds.remove(uid)
+                    }
                 }
             )
         }
@@ -434,39 +445,88 @@ struct PendingProfileOverlay: View {
     @Binding var isShowing: Bool
     var isReceived: Bool = false
     var onSendSign: () -> Void = {}
+    var onDeny: () -> Void = {}
+    var onCancel: () -> Void = {}
     
     var body: some View {
         ZStack {
             Color.black.opacity(0.4).ignoresSafeArea()
                 .onTapGesture { isShowing = false }
             
-            VStack {
+            VStack(spacing: 0) {
                 ProfileComparisonColumn(title: "Profile Detail", data: user, isMatch: true)
                     .padding(.horizontal, 10)
                 
-                HStack(spacing: 15) {
-                    Button(action: { isShowing = false }) {
-                        Text("Close")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.primary)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(Color(white: 0.95))
-                            .cornerRadius(12)
-                    }
-                    
+                VStack(spacing: 12) {
                     if isReceived {
-                        Button(action: {
-                            isShowing = false
-                            onSendSign()
-                        }) {
-                            Text("Send Sign")
+                        // Received: Deny(Orange) | Send Sign(Blue)
+                        HStack(spacing: 15) {
+                            Button(action: {
+                                withAnimation {
+                                    isShowing = false
+                                    onDeny()
+                                }
+                            }) {
+                                Text("Deny")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.orange.opacity(0.9))
+                                    .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
+                                isShowing = false
+                                onSendSign()
+                            }) {
+                                Text("Send Sign")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.blue)
+                                    .cornerRadius(12)
+                            }
+                        }
+                        
+                        // Close (Full width)
+                        Button(action: { isShowing = false }) {
+                            Text("Close")
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.vertical, 12)
+                                .foregroundColor(.primary)
+                                .padding(.vertical, 14)
                                 .frame(maxWidth: .infinity)
-                                .background(Color.blue)
+                                .background(Color(white: 0.95))
                                 .cornerRadius(12)
+                        }
+                    } else {
+                        // Sent: Close | Cancel(Orange)
+                        HStack(spacing: 15) {
+                            Button(action: { isShowing = false }) {
+                                Text("Close")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.primary)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(white: 0.95))
+                                    .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
+                                withAnimation {
+                                    isShowing = false
+                                    onCancel()
+                                }
+                            }) {
+                                Text("Cancel")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.orange.opacity(0.9))
+                                    .cornerRadius(12)
+                            }
                         }
                     }
                 }
