@@ -121,7 +121,7 @@ struct MainView: View {
         HStack {
             // 왼쪽: 닉네임
             HStack(spacing: 8) {
-                Text("\(currentUserData?["lastName"] as? String ?? "")\(currentUserData?["firstName"] as? String ?? "")")
+                Text("\(currentUserData?["nickname"] as? String ?? "User")")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
             }

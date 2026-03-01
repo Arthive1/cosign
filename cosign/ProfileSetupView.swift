@@ -15,6 +15,7 @@ struct ProfileSetupView: View {
     // --- 1. Profile 관련 ---
     @State private var firstName: String = ""
     @State private var lastName: String = ""
+    @State private var nickname: String = ""
     @State private var birthday: String = ""
     @State private var selectedGender: String = "Select"
     @State private var selectedNationality: String = "Korea, Republic of"
@@ -68,7 +69,7 @@ struct ProfileSetupView: View {
     }
     
     // 섹션 완료 상태 (로직으로 판단)
-    var isProfileDone: Bool { !firstName.isEmpty && !lastName.isEmpty && !birthday.isEmpty && selectedGender != "Select" }
+    var isProfileDone: Bool { !firstName.isEmpty && !lastName.isEmpty && !nickname.isEmpty && !birthday.isEmpty && selectedGender != "Select" }
     var isEconomicsDone: Bool { employmentType != "Select" && jobField != "Select" }
     var isAnySectionDone: Bool { isProfileDone || isEconomicsDone || isEducationDone || isHobbiesDone }
     var isAllDone: Bool { isProfileDone && isEconomicsDone && isEducationDone && isHobbiesDone }
@@ -88,6 +89,7 @@ struct ProfileSetupView: View {
     @State private var isLoading: Bool = false
     @AppStorage("mySignBalance") private var mySignBalance: Int = 0
     @State private var wasSectionDoneBeforeEditing: Bool = false
+    @State private var showBonusAlert: Bool = false
     
     enum SetupSection: String, Identifiable {
         case profile = "Profile", economics = "Economics", education = "Education", hobbies = "Hobbies"
@@ -144,6 +146,10 @@ struct ProfileSetupView: View {
                 if isLoading {
                     Color.black.opacity(0.15).ignoresSafeArea()
                     ProgressView("Finalizing...").padding().background(Color.white).cornerRadius(15).shadow(radius: 10)
+                }
+                
+                if showBonusAlert {
+                    bonusPopupOverlay
                 }
             }
             .onAppear {
@@ -355,6 +361,9 @@ struct ProfileSetupView: View {
                     
                     if !wasSectionDoneBeforeEditing && isDoneNow {
                         mySignBalance += 100
+                        withAnimation {
+                            showBonusAlert = true
+                        }
                     }
                     
                     editingSection = nil
@@ -385,6 +394,7 @@ struct ProfileSetupView: View {
             }
             
             HStack { CustomTextField(placeholder: "Last Name", text: $lastName); CustomTextField(placeholder: "First Name", text: $firstName) }
+            CustomTextField(placeholder: "Nickname", text: $nickname)
             CustomTextField(placeholder: "Birthday (YYYYMMDD)", text: $birthday).keyboardType(.numberPad)
             HStack {
                 setupSelectionField(title: selectedGender == "Select" ? "Gender" : selectedGender, field: .gender)
@@ -527,7 +537,7 @@ struct ProfileSetupView: View {
     func updateFirestore(uid: String, imageUrl: String) {
         let db = Firestore.firestore()
         var updateData: [String: Any] = [
-            "lastName": lastName, "firstName": firstName, "birthday": birthday, "gender": selectedGender,
+            "lastName": lastName, "firstName": firstName, "nickname": nickname, "birthday": birthday, "gender": selectedGender,
             "nationality": selectedNationality, "height": height, "weight": weight, "bloodType": selectedBloodType,
             "mbti": selectedMBTI, "hobbies": Array(selectedHobbies), "employmentType": employmentType,
             "jobField": jobField, "annualIncome": annualIncome, "liquidAssets": liquidAssets, "fixedAssets": fixedAssets,
@@ -553,6 +563,7 @@ struct ProfileSetupView: View {
                 // Profile
                 self.lastName = data["lastName"] as? String ?? ""
                 self.firstName = data["firstName"] as? String ?? ""
+                self.nickname = data["nickname"] as? String ?? ""
                 self.birthday = data["birthday"] as? String ?? ""
                 self.selectedGender = data["gender"] as? String ?? "Select"
                 self.selectedNationality = data["nationality"] as? String ?? "Korea, Republic of"
@@ -580,6 +591,49 @@ struct ProfileSetupView: View {
                     self.selectedHobbies = Set(hobbies)
                 }
             }
+        }
+    }
+    
+    
+    // MARK: - Bonus Popup
+    private var bonusPopupOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                Image(systemName: "gift.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                
+                VStack(spacing: 8) {
+                    Text("Bonus Signs Earned!")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("Your information has been saved.\nYou've been awarded 100 Signs.")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                Button(action: {
+                    withAnimation {
+                        showBonusAlert = false
+                    }
+                }) {
+                    Text("Awesome!")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                        .cornerRadius(15)
+                }
+                .padding(.top, 10)
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(25)
+            .padding(.horizontal, 40)
+            .shadow(radius: 20)
         }
     }
     

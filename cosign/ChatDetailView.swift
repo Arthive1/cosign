@@ -56,7 +56,7 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 15)
                 
                 // 중앙 닉네임
-                Text("\(otherUser["lastName"] as? String ?? "")\(otherUser["firstName"] as? String ?? "")")
+                Text("\(otherUser["nickname"] as? String ?? "User")")
                     .font(.system(size: 17, weight: .bold))
             }
             .frame(height: 50)

@@ -382,7 +382,7 @@ struct PendingSignRow: View {
             miniProfileCircle(userData: other)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(other["lastName"] as? String ?? "")\(other["firstName"] as? String ?? "")")
+                Text("\(other["nickname"] as? String ?? "User")")
                     .font(.system(size: 16, weight: .bold))
                 Text(type == .sent ? "Sent Sign" : "Received Sign")
                     .font(.system(size: 12))
@@ -508,7 +508,7 @@ struct ChatRow: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("\(user["lastName"] as? String ?? "")\(user["firstName"] as? String ?? "")")
+                    Text("\(user["nickname"] as? String ?? "User")")
                         .font(.system(size: 16, weight: .bold))
                     Spacer()
                     Text("Just now")
