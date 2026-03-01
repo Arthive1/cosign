@@ -4,6 +4,7 @@ import Firebase
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
+import MapKit
 
 struct ProfileSetupView: View {
     @Environment(\.dismiss) var dismiss
@@ -95,6 +96,10 @@ struct ProfileSetupView: View {
     @State private var showInitialConfirm: Bool = false
     @State private var showEditConfirm: Bool = false
     @State private var showInsufficientSignsAlert: Bool = false
+    
+    // 학교 검색 결과
+    @State private var schoolSuggestions: [MKMapItem] = []
+    @State private var isSearchingSchools: Bool = false
     
     enum SetupSection: String, Identifiable {
         case profile = "Profile", economics = "Economics", education = "Education", hobbies = "Hobbies"
@@ -189,7 +194,7 @@ struct ProfileSetupView: View {
                 }
                 .sheet(item: $editingEducationField) { field in
                     EducationNameInputView(field: field)
-                        .presentationDetents([.height(250)])
+                        .presentationDetents([.medium, .large])
                 }
                 .alert("Incomplete Sequence", isPresented: $showEducationAlert) {
                     Button("OK", role: .cancel) { }
@@ -212,24 +217,104 @@ struct ProfileSetupView: View {
             }
         }()
         
-        return VStack(spacing: 25) {
-            Text("\(field.rawValue) School Name")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .padding(.top, 30)
+        return VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("\(field.rawValue) School Selection")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                Spacer()
+                Button(action: { editingEducationField = nil }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray.opacity(0.3))
+                        .font(.title2)
+                }
+            }
+            .padding(.horizontal, 30)
+            .padding(.top, 25)
+            .padding(.bottom, 15)
             
-            CustomTextField(placeholder: "Enter school name", text: binding)
+            // Search Bar
+            CustomTextField(placeholder: "Search for your school...", text: binding)
                 .padding(.horizontal, 30)
+                .onChange(of: binding.wrappedValue) { oldValue, newValue in
+                    if !newValue.isEmpty && newValue.count > 1 {
+                        searchSchools(query: newValue, field: field)
+                    } else {
+                        schoolSuggestions = []
+                    }
+                }
             
-            Button("Save") { editingEducationField = nil }
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(Color(red: 0.53, green: 0.75, blue: 0.94))
-                .cornerRadius(12)
-                .padding(.horizontal, 30)
+            if isSearchingSchools {
+                ProgressView()
+                    .padding(.top, 20)
+            }
+            
+            // Suggestions List
+            if !schoolSuggestions.isEmpty {
+                List(schoolSuggestions, id: \.self) { item in
+                    Button(action: {
+                        binding.wrappedValue = item.name ?? ""
+                        schoolSuggestions = []
+                        editingEducationField = nil
+                    }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name ?? "Unknown School")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            if let addr = item.placemark.title {
+                                Text(addr)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                .listStyle(.plain)
+                .padding(.top, 10)
+            } else if !binding.wrappedValue.isEmpty && !isSearchingSchools {
+                VStack(spacing: 15) {
+                    Spacer().frame(height: 30)
+                    Text("Can't find your school?")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    Button("Use \"\(binding.wrappedValue)\"") {
+                        editingEducationField = nil
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 25)
+                    .padding(.vertical, 12)
+                    .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                    .cornerRadius(20)
+                }
+            }
             
             Spacer()
+        }
+    }
+    
+    private func searchSchools(query: String, field: EducationField) {
+        let request = MKLocalSearch.Request()
+        // 필드에 따라 검색어 보강 (예: 대학교 검색 시 "University" 포함 권장)
+        let searchQuery = query.lowercased().contains(field.rawValue.lowercased()) ? query : "\(query) \(field.rawValue) School"
+        request.naturalLanguageQuery = searchQuery
+        
+        // POI 필터링 (학교 관련 건물 위주)
+        let filter = MKPointOfInterestFilter(including: [.university, .school])
+        request.pointOfInterestFilter = filter
+        
+        isSearchingSchools = true
+        let search = MKLocalSearch(request: request)
+        search.start { response, error in
+            isSearchingSchools = false
+            if let response = response {
+                // 이름에 입력값이 포함된 것 위주로 필터링 가능
+                self.schoolSuggestions = response.mapItems
+            }
         }
     }
     
