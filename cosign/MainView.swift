@@ -31,7 +31,7 @@ struct MainView: View {
     @State private var cachedCandidates: [[String: Any]] = []
     
     // 공통 헤더 상태
-    @State private var showBalance: Bool = false
+    @State private var showBilling: Bool = false
     
     var body: some View {
         NavigationStack {
@@ -129,6 +129,105 @@ struct MainView: View {
             } message: {
                 Text("Please update your profile first to use this feature.")
             }
+            
+            // 6. 과금(Top-up) 팝업 레이어
+            if showBilling {
+                billingOverlay
+            }
+        }
+    }
+    
+    // MARK: - Billing Overlay
+    private var billingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { withAnimation { showBilling = false } }
+            
+            VStack(spacing: 25) {
+                VStack(spacing: 8) {
+                    Text("Top Up Signs")
+                        .font(.custom("Outfit-Bold", size: 24))
+                        .fontWeight(.black)
+                    Text("Choose a package to recharge your signs")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 5)
+                
+                VStack(spacing: 12) {
+                    billingRow(signs: 100, price: "$1")
+                    billingRow(signs: 500, price: "$4")
+                    billingRow(signs: 1500, price: "$10")
+                    billingRow(signs: 6000, price: "$30")
+                }
+                
+                Button(action: { withAnimation { showBilling = false } }) {
+                    Text("Close")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(.top, 5)
+                }
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(30)
+            .shadow(color: Color.black.opacity(0.15), radius: 30, x: 0, y: 15)
+            .padding(.horizontal, 30)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+    
+    private func billingRow(signs: Int, price: String) -> some View {
+        Button(action: {
+            topUpSigns(amount: signs)
+        }) {
+            HStack(spacing: 0) {
+                // 왼쪽: 사인 박스 (하얀색)
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                    Text("\(signs) Signs")
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                )
+                
+                // 오른쪽: 금액 박스 (연한 노란색)
+                Text(price)
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(Color(red: 0.4, green: 0.3, blue: 0.1))
+                    .frame(width: 100)
+                    .frame(height: 60)
+                    .background(Color(red: 1.0, green: 0.98, blue: 0.85)) // 연한 노란색
+            }
+            .cornerRadius(15)
+            .shadow(color: Color.black.opacity(0.03), radius: 5, x: 0, y: 3)
+        }
+    }
+    
+    private func topUpSigns(amount: Int) {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        
+        let newBalance = mySignBalance + amount
+        
+        // Firestore 업데이트
+        Firestore.firestore().collection("users").document(uid).updateData([
+            "mySignBalance": newBalance
+        ]) { error in
+            if error == nil {
+                withAnimation {
+                    mySignBalance = newBalance
+                    showBilling = false
+                }
+            }
         }
     }
     
@@ -147,18 +246,18 @@ struct MainView: View {
             
             // 오른쪽: 아이콘들
             HStack(spacing: 20) {
-                // 사인 아이콘
+                // 사인 아이콘 및 잔액 (잔액 상시 노출)
                 Button(action: {
                     withAnimation(.spring()) {
-                        showBalance.toggle()
+                        showBilling.toggle()
                     }
                 }) {
                     HStack(spacing: 4) {
-                        if showBalance {
-                            Text("\(mySignBalance)")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
+                        Text("\(mySignBalance)")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
                         Image(systemName: "waveform")
+                            .font(.system(size: 18, weight: .bold))
                     }
                 }
                 .foregroundColor(.secondary)
@@ -194,7 +293,12 @@ struct MainView: View {
         
         guard let uid = Auth.auth().currentUser?.uid else { return }
         Firestore.firestore().collection("users").document(uid).getDocument { snap, _ in
-            self.currentUserData = snap?.data()
+            if let data = snap?.data() {
+                self.currentUserData = data
+                if let balance = data["mySignBalance"] as? Int {
+                    self.mySignBalance = balance
+                }
+            }
         }
     }
     

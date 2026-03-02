@@ -828,7 +828,8 @@ struct ProfileSetupView: View {
             "jobField": jobField, "annualIncome": annualIncome, "liquidAssets": liquidAssets, "fixedAssets": fixedAssets,
             "elementarySchool": elementarySchool, "middleSchool": middleSchool, "highSchool": highSchool,
             "university": university, "graduateSchool": graduateSchool, "isProfileComplete": isAllDone,
-            "address": address, "latitude": latitude, "longitude": longitude
+            "address": address, "latitude": latitude, "longitude": longitude,
+            "mySignBalance": mySignBalance
         ]
         if !imageUrl.isEmpty { updateData["profileImageUrl"] = imageUrl }
         
@@ -879,6 +880,10 @@ struct ProfileSetupView: View {
                 // Hobbies
                 if let hobbies = data["hobbies"] as? [String] {
                     self.selectedHobbies = Set(hobbies)
+                }
+                
+                if let balance = data["mySignBalance"] as? Int {
+                    self.mySignBalance = balance
                 }
                 
                 // 원본 데이터를 백업 (수정 여부 판단용)

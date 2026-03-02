@@ -134,6 +134,7 @@ struct SignUpView: View {
             "email": email,
             "nickname": nickname,
             "isProfileComplete": false, // 프로필 설정 여부 체크용
+            "mySignBalance": 0,
             "createdAt": FieldValue.serverTimestamp()
         ]
         
