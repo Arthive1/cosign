@@ -25,6 +25,7 @@ struct MainView: View {
     @State private var receivedUsers: [[String: Any]] = []
     @State private var selectedTab: Int = 0
     @State private var ignoredIds: Set<String> = []
+    @State private var showNoMatchAlert: Bool = false
     
     // Firestore 읽기 횟수 최적화를 위한 후보군 로컬 캐싱
     @State private var cachedCandidates: [[String: Any]] = []
@@ -88,6 +89,11 @@ struct MainView: View {
                         isEditingProfile = false 
                         fetchMyData(forceRefresh: true) // 프로필 변경 시에만 서버에서 새로 불러옴
                     }
+            }
+            .alert("No Matches Found", isPresented: $showNoMatchAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("There are no users who meet the matching criteria at the moment.")
             }
             .onAppear {
                 fetchMyData() // 기본 캐시된 값 사용
@@ -234,6 +240,13 @@ struct MainView: View {
         
         let myVector = Vectorize(myData)
         
+        // 내 나이 및 성인 여부 계산
+        let myBday = myData["birthday"] as? String ?? "19900101"
+        let myYear = Int(myBday.prefix(4)) ?? 1990
+        
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let myAge = currentYear - myYear
+        
         for otherData in cachedCandidates {
             guard let otherId = otherData["uid"] as? String else { continue }
             
@@ -241,7 +254,17 @@ struct MainView: View {
             if sentSignUserIds.contains(otherId) { continue }
             if ignoredIds.contains(otherId) { continue }
             
-            let otherVector = Vectorize(otherData)
+            // 2. 나이 및 성인 필터링
+            let otherBday = otherData["birthday"] as? String ?? "19900101"
+            let otherYear = Int(otherBday.prefix(4)) ?? 1990
+            let otherAge = currentYear - otherYear
+            
+            // 본인 혹은 상대방이 15세 미만인 경우 제외
+            if myAge < 15 || otherAge < 15 { continue }
+            
+            // 나이 차이 10살 초과 시 제외
+            let ageDiff = abs(myYear - otherYear)
+            if ageDiff > 10 { continue }
             
             // 거리 필터링 (30km 이내)
             let myLat = myData["latitude"] as? Double ?? 0.0
@@ -253,15 +276,7 @@ struct MainView: View {
             
             if distance > 30000 { continue } // 30km 초과 시 무시
             
-            // 나이 차이 필터링 (5살 초과 시 무시)
-            let myBday = myData["birthday"] as? String ?? ""
-            let otherBday = otherData["birthday"] as? String ?? ""
-            if !myBday.isEmpty && !otherBday.isEmpty {
-                let myYear = Int(myBday.prefix(4)) ?? 0
-                let otherYear = Int(otherBday.prefix(4)) ?? 0
-                if abs(myYear - otherYear) > 5 { continue }
-            }
-            
+            let otherVector = Vectorize(otherData)
             let sim = cosineSimilarity(myVector, otherVector)
             
             if sim > maxSimilarity {
@@ -274,9 +289,12 @@ struct MainView: View {
             withAnimation {
                 if let match = bestMatch, let matchId = match["uid"] as? String {
                     ignoredIds.insert(matchId)
+                    self.matchedUser = bestMatch
+                    self.similarityScore = maxSimilarity
+                } else {
+                    // 조건에 맞는 사용자가 없을 때 알럿 표시
+                    self.showNoMatchAlert = true
                 }
-                self.matchedUser = bestMatch
-                self.similarityScore = maxSimilarity
                 self.isFinding = false
             }
         }
@@ -298,6 +316,8 @@ struct MainView: View {
         let w = Double(data["weight"] as? String ?? "65") ?? 65.0
         vector.append(h / 200.0)
         vector.append(w / 100.0)
+        
+        // 1. MBTI 변수 제외 (기존 4개 차원 제거)
         
         let inc = Double(data["annualIncome"] as? String ?? "0") ?? 0
         let liq = Double(data["liquidAssets"] as? String ?? "0") ?? 0

@@ -113,6 +113,41 @@ struct ProfileSetupView: View {
     @State private var schoolSuggestions: [MKMapItem] = []
     @State private var isSearchingSchools: Bool = false
     
+    // 수정 여부 판단을 위한 원본 데이터 저장
+    @State private var originalData: [String: Any] = [:]
+    
+    var hasChanges: Bool {
+        // 주요 필드들 비교
+        if firstName != (originalData["firstName"] as? String ?? "") { return true }
+        if lastName != (originalData["lastName"] as? String ?? "") { return true }
+        if nickname != (originalData["nickname"] as? String ?? "") { return true }
+        if birthday != (originalData["birthday"] as? String ?? "") { return true }
+        if selectedGender != (originalData["gender"] as? String ?? "Select") { return true }
+        if selectedNationality != (originalData["nationality"] as? String ?? "Korea, Republic of") { return true }
+        if height != (originalData["height"] as? String ?? "") { return true }
+        if weight != (originalData["weight"] as? String ?? "") { return true }
+        if selectedBloodType != (originalData["bloodType"] as? String ?? "Select") { return true }
+        if selectedMBTI != (originalData["mbti"] as? String ?? "Select") { return true }
+        if address != (originalData["address"] as? String ?? "") { return true }
+        if employmentType != (originalData["employmentType"] as? String ?? "Select") { return true }
+        if jobField != (originalData["jobField"] as? String ?? "Select") { return true }
+        if annualIncome != (originalData["annualIncome"] as? String ?? "") { return true }
+        if liquidAssets != (originalData["liquidAssets"] as? String ?? "") { return true }
+        if fixedAssets != (originalData["fixedAssets"] as? String ?? "") { return true }
+        if elementarySchool != (originalData["elementarySchool"] as? String ?? "") { return true }
+        if middleSchool != (originalData["middleSchool"] as? String ?? "") { return true }
+        if highSchool != (originalData["highSchool"] as? String ?? "") { return true }
+        if university != (originalData["university"] as? String ?? "") { return true }
+        if graduateSchool != (originalData["graduateSchool"] as? String ?? "") { return true }
+        
+        let originalHobbies = Set(originalData["hobbies"] as? [String] ?? [])
+        if selectedHobbies != originalHobbies { return true }
+        
+        if avatarData != nil { return true } // 사진 변경 시 수정으로 판단
+        
+        return false
+    }
+    
     enum SetupSection: String, Identifiable {
         case profile = "Profile", economics = "Economics", education = "Education", hobbies = "Hobbies"
         var id: String { self.rawValue }
@@ -150,13 +185,21 @@ struct ProfileSetupView: View {
                     // 최종 완료 버튼
                     Button(action: {
                         if headerTitle == "Change Profile" {
-                            if mySignBalance >= 100 {
-                                showEditConfirm = true
+                            // 수정된 내용이 있는지 확인
+                            if hasChanges {
+                                if mySignBalance >= 100 {
+                                    showEditConfirm = true
+                                } else {
+                                    showInsufficientSignsAlert = true
+                                }
                             } else {
-                                showInsufficientSignsAlert = true
+                                // 변경사항이 없으면 저장을 건너뛰고 바로 닫기
+                                dismiss()
                             }
                         } else {
-                            showInitialConfirm = true
+                            // 신규 가입 후 초기 설정 모드 (Complete Your Profile)
+                            // 모든 항목이 완료되었든 일부만 되었든 초기 설정 중에는 팝업 없이 즉시 저장 (비용 발생 없음)
+                            handleFinalSave()
                         }
                     }) {
                         Text("Finish Update")
@@ -814,6 +857,9 @@ struct ProfileSetupView: View {
                 if let hobbies = data["hobbies"] as? [String] {
                     self.selectedHobbies = Set(hobbies)
                 }
+                
+                // 원본 데이터를 백업 (수정 여부 판단용)
+                self.originalData = data
             }
         }
     }
@@ -876,8 +922,8 @@ struct ProfileSetupView: View {
     private var initialConfirmOverlay: some View {
         customConfirmPopup(
             title: "Is the information correct?",
-            message: "Is the entered information correct? 100 Signs will be required for further modifications in the future.",
-            buttonTitle: "Confirm",
+            message: "Is the entered information correct? Once confirmed, 100 Signs will be required for further modifications.",
+            buttonTitle: "Finish & Save",
             confirmAction: {
                 showInitialConfirm = false
                 handleFinalSave()
