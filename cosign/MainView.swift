@@ -253,6 +253,15 @@ struct MainView: View {
             
             if distance > 30000 { continue } // 30km 초과 시 무시
             
+            // 나이 차이 필터링 (5살 초과 시 무시)
+            let myBday = myData["birthday"] as? String ?? ""
+            let otherBday = otherData["birthday"] as? String ?? ""
+            if !myBday.isEmpty && !otherBday.isEmpty {
+                let myYear = Int(myBday.prefix(4)) ?? 0
+                let otherYear = Int(otherBday.prefix(4)) ?? 0
+                if abs(myYear - otherYear) > 5 { continue }
+            }
+            
             let sim = cosineSimilarity(myVector, otherVector)
             
             if sim > maxSimilarity {
@@ -289,12 +298,6 @@ struct MainView: View {
         let w = Double(data["weight"] as? String ?? "65") ?? 65.0
         vector.append(h / 200.0)
         vector.append(w / 100.0)
-        
-        let mbti = data["mbti"] as? String ?? "XXXX"
-        vector.append(mbti.contains("E") ? 1 : 0)
-        vector.append(mbti.contains("S") ? 1 : 0)
-        vector.append(mbti.contains("T") ? 1 : 0)
-        vector.append(mbti.contains("J") ? 1 : 0)
         
         let inc = Double(data["annualIncome"] as? String ?? "0") ?? 0
         let liq = Double(data["liquidAssets"] as? String ?? "0") ?? 0
@@ -339,17 +342,20 @@ struct MainView: View {
         let mbtis = ["INTJ", "ENFP", "INFJ", "ENTP", "ISTJ", "ISFP", "ESTJ", "ESFJ"]
         let hList = ["Movies", "Music", "Sports", "Travel", "Gaming", "Food", "Pets"]
         
+        let gyeonggiCities = ["Suwon-si", "Seongnam-si", "Goyang-si", "Yongin-si", "Bucheon-si", "Ansan-si", "Anyang-si", "Namyangju-si", "Hwaseong-si"]
+        
         let group = DispatchGroup()
         for i in 1...10 {
             group.enter()
             let isMale = (i % 2 == 0)
+            let selectedCity = gyeonggiCities.randomElement()!
             let data: [String: Any] = [
                 "lastName": lastNames.randomElement()!,
                 "firstName": firstNames.randomElement()!,
                 "nickname": "\(nickPrefix.randomElement()!)\(nickSuffix.randomElement()!)",
                 "birthday": "199\(Int.random(in: 0...9))\(String(format: "%02d", Int.random(in: 1...12)))\(String(format: "%02d", Int.random(in: 1...28)))",
                 "gender": isMale ? "Male" : "Female",
-                "nationality": nationalities.randomElement()!,
+                "nationality": "Korea, Republic of",
                 "height": isMale ? "\(Int.random(in: 172...185))" : "\(Int.random(in: 158...170))",
                 "weight": isMale ? "\(Int.random(in: 65...85))" : "\(Int.random(in: 45...60))",
                 "bloodType": ["A", "B", "AB", "O"].randomElement()!,
@@ -367,8 +373,9 @@ struct MainView: View {
                 "phoneNumber": "010-\(Int.random(in: 1000...9999))-\(Int.random(in: 1000...9999))",
                 "isProfileComplete": true,
                 "profileImageUrl": "",
-                "latitude": 37.5665 + Double.random(in: -0.5...0.5), // 서울 근교 임의 좌표
-                "longitude": 126.9780 + Double.random(in: -0.5...0.5)
+                "address": "\(selectedCity), Gyeonggi-do, South Korea",
+                "latitude": 37.2 + Double.random(in: 0...0.6), // Gyeonggi-do range
+                "longitude": 126.8 + Double.random(in: 0...0.5)
             ]
             db.collection("users").document(UUID().uuidString).setData(data) { _ in group.leave() }
         }

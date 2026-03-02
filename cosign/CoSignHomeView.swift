@@ -2,6 +2,7 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import CoreLocation
 
 struct CoSignHomeView: View {
     let isProfileComplete: Bool
@@ -197,7 +198,7 @@ struct CoSignHomeView: View {
     
     // MARK: - Comparison UI
     private func comparisonSection(myData: [String: Any], otherData: [String: Any]) -> some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 12) {
             Text(String(format: "Similarity Score: %.2f%%", similarityScore * 100))
                 .font(.system(size: 18, weight: .black, design: .rounded))
                 .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
@@ -207,6 +208,29 @@ struct CoSignHomeView: View {
                 ProfileComparisonColumn(title: "Me", data: myData, isMatch: false)
                 ProfileComparisonColumn(title: "Co-sign", data: otherData, isMatch: true)
             }
+            
+            // Distance (Centered)
+            let distance = calculateDistance(
+                lat1: myData["latitude"] as? Double ?? 0.0,
+                lon1: myData["longitude"] as? Double ?? 0.0,
+                lat2: otherData["latitude"] as? Double ?? 0.0,
+                lon2: otherData["longitude"] as? Double ?? 0.0
+            )
+            
+            VStack(spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 12))
+                    Text(String(format: "%.1fkm away", distance / 1000.0))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+                .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
+                .padding(.vertical, 8)
+                .padding(.horizontal, 15)
+                .background(Color(red: 0.53, green: 0.75, blue: 0.94).opacity(0.1))
+                .cornerRadius(20)
+            }
+            .padding(.bottom, 12)
         }
         .background(Color.white)
         .cornerRadius(25)
@@ -334,5 +358,11 @@ struct CoSignHomeView: View {
             .shadow(radius: 20)
             .padding(.horizontal, 40)
         }
+    }
+    
+    private func calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+        let p1 = CLLocation(latitude: lat1, longitude: lon1)
+        let p2 = CLLocation(latitude: lat2, longitude: lon2)
+        return p1.distance(from: p2)
     }
 }

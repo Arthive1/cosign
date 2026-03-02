@@ -641,7 +641,7 @@ struct PendingProfileOverlay: View {
                 .onTapGesture { isShowing = false }
             
             VStack(spacing: 0) {
-                ProfileComparisonColumn(title: "Profile Detail", data: user, isMatch: true)
+                ProfileComparisonColumn(title: "Profile Detail", data: user, isMatch: true, isGridView: true)
                     .padding(.horizontal, 10)
                 
                 VStack(spacing: 12) {

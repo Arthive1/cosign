@@ -41,6 +41,7 @@ struct ProfileComparisonColumn: View {
     let title: String
     let data: [String: Any]
     let isMatch: Bool
+    var isGridView: Bool = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -49,42 +50,76 @@ struct ProfileComparisonColumn: View {
                 .foregroundColor(isMatch ? .blue : .gray)
                 .padding(.top, 15)
             
-            // 프로필 사진 (가로세로 동일 네모, 너비 꽉 차게)
+            // 프로필 사진
             GeometryReader { geo in
                 Rectangle()
                     .fill(Color.gray.opacity(0.1))
                     .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: geo.size.width * 0.4))
-                            .foregroundColor(.gray.opacity(0.3))
+                        Group {
+                            if let url = data["profileImageUrl"] as? String, !url.isEmpty {
+                                AsyncImage(url: URL(string: url)) { img in
+                                    img.resizable().scaledToFill()
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                            } else {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: geo.size.width * 0.4))
+                                    .foregroundColor(.gray.opacity(0.3))
+                            }
+                        }
                     )
                     .aspectRatio(1, contentMode: .fit)
                     .cornerRadius(12)
                     .frame(width: geo.size.width, height: geo.size.width)
+                    .clipped()
             }
             .aspectRatio(1, contentMode: .fit)
             .padding(.horizontal, 10)
             
-            VStack(alignment: .leading, spacing: 12) {
-                InfoLabel(text: data["nickname"] as? String ?? "User", icon: "person", isBold: true)
-                InfoLabel(text: String((data["birthday"] as? String ?? "Unknown").prefix(4)), icon: "calendar")
-                InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
-                InfoLabel(text: "\(data["weight"] as? String ?? "0")kg", icon: "scalemass")
-                InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")
-                
-                HStack(spacing: 6) {
-                    Image(systemName: "graduationcap")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-                    Text(getHighestEdu(data))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+            if isGridView {
+                // 2열 그리드 레이아웃
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
+                    InfoLabel(text: data["nickname"] as? String ?? "User", icon: "person", isBold: true)
+                    InfoLabel(text: String((data["birthday"] as? String ?? "Unknown").prefix(4)), icon: "calendar")
+                    InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
+                    InfoLabel(text: "\(data["weight"] as? String ?? "0")kg", icon: "scalemass")
+                    InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")
+                    
+                    HStack(spacing: 6) {
+                        Image(systemName: "graduationcap")
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                        Text(getHighestEdu(data))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
                 }
+                .padding(.horizontal, 15)
+                .padding(.bottom, 20)
+            } else {
+                // 기존 1열 레이아웃 (매칭 비교용)
+                VStack(alignment: .leading, spacing: 12) {
+                    InfoLabel(text: data["nickname"] as? String ?? "User", icon: "person", isBold: true)
+                    InfoLabel(text: String((data["birthday"] as? String ?? "Unknown").prefix(4)), icon: "calendar")
+                    InfoLabel(text: "\(data["height"] as? String ?? "0")cm", icon: "ruler")
+                    InfoLabel(text: "\(data["weight"] as? String ?? "0")kg", icon: "scalemass")
+                    InfoLabel(text: data["mbti"] as? String ?? "None", icon: "brain")
+                    
+                    HStack(spacing: 6) {
+                        Image(systemName: "graduationcap")
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                        Text(getHighestEdu(data))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 35) // 프로필 사진 정렬에 맞춰 패딩 조정
-            .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity)
     }
