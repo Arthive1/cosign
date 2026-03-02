@@ -27,6 +27,7 @@ struct ProfileSetupView: View {
     @State private var avatarItem: PhotosPickerItem?
     @State private var avatarImage: Image?
     @State private var avatarData: Data?
+    @State private var profileImageUrl: String = ""
     
     // --- 1-1. Address 관련 ---
     @State private var address: String = ""
@@ -81,7 +82,7 @@ struct ProfileSetupView: View {
     // 섹션 완료 상태 (로직으로 판단)
     var isProfileDone: Bool { 
         !firstName.isEmpty && !lastName.isEmpty && !nickname.isEmpty && !birthday.isEmpty && 
-        selectedGender != "Select" && !address.isEmpty 
+        selectedGender != "Select" && !address.isEmpty && (!profileImageUrl.isEmpty || avatarData != nil)
     }
     var isEconomicsDone: Bool { employmentType != "Select" && jobField != "Select" }
     var isAnySectionDone: Bool { isProfileDone || isEconomicsDone || isEducationDone || isHobbiesDone }
@@ -618,6 +619,12 @@ struct ProfileSetupView: View {
             PhotosPicker(selection: $avatarItem, matching: .images) {
                 if let avatarImage {
                     avatarImage.resizable().scaledToFill().frame(width: 100, height: 100).clipShape(Circle())
+                } else if !profileImageUrl.isEmpty {
+                    AsyncImage(url: URL(string: profileImageUrl)) { image in
+                        image.resizable().scaledToFill().frame(width: 100, height: 100).clipShape(Circle())
+                    } placeholder: {
+                        ProgressView().frame(width: 100, height: 100)
+                    }
                 } else {
                     Circle().fill(Color.gray.opacity(0.1)).frame(width: 100, height: 100)
                         .overlay(Image(systemName: "camera.fill").foregroundColor(.gray))
@@ -627,8 +634,11 @@ struct ProfileSetupView: View {
                 Task {
                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                        let uiImage = UIImage(data: data) {
-                        avatarData = data
-                        avatarImage = Image(uiImage: uiImage)
+                        // 원본 데이터가 아닌 압축된 JPEG 데이터를 사용하여 업로드 속도 및 성공률 개선
+                        if let compressedData = uiImage.jpegData(compressionQuality: 0.5) {
+                            avatarData = compressedData
+                            avatarImage = Image(uiImage: uiImage)
+                        }
                     }
                 }
             }
@@ -787,9 +797,21 @@ struct ProfileSetupView: View {
         
         if let data = avatarData {
             let storageRef = Storage.storage().reference().child("profile_images/\(uid).jpg")
-            storageRef.putData(data, metadata: nil) { _, _ in
-                storageRef.downloadURL { url, _ in
-                    updateFirestore(uid: uid, imageUrl: url?.absoluteString ?? "")
+            
+            // 데이터 업로드 시도
+            storageRef.putData(data, metadata: nil) { metadata, error in
+                if let error = error {
+                    print("Firebase Storage 이미지 업로드 실패: \(error.localizedDescription)")
+                    self.updateFirestore(uid: uid, imageUrl: "")
+                    return
+                }
+                
+                // URL 가져오기
+                storageRef.downloadURL { url, error in
+                    if let error = error {
+                        print("Firebase Storage 이미지 URL 가져오기 실패: \(error.localizedDescription)")
+                    }
+                    self.updateFirestore(uid: uid, imageUrl: url?.absoluteString ?? "")
                 }
             }
         } else {
@@ -838,6 +860,7 @@ struct ProfileSetupView: View {
                 self.address = data["address"] as? String ?? ""
                 self.latitude = data["latitude"] as? Double ?? 0.0
                 self.longitude = data["longitude"] as? Double ?? 0.0
+                self.profileImageUrl = data["profileImageUrl"] as? String ?? ""
                 
                 // Economics
                 self.employmentType = data["employmentType"] as? String ?? "Select"
