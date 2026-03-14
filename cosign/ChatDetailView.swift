@@ -14,6 +14,11 @@ struct ChatDetailView: View {
         ChatMessage(id: UUID(), text: "Yes! 92% is impressive. What are your hobbies?", isMe: false)
     ]
     
+    // 차단 및 신고 팝업 상태
+    @State private var showBlockAlert: Bool = false
+    @State private var showReportAlert: Bool = false
+    @State private var showReportCompleteAlert: Bool = false
+    
     // 마지막 메시지 업데이트를 위한 콜백
     var onMessageSent: ((String) -> Void)? = nil
     
@@ -21,6 +26,10 @@ struct ChatDetailView: View {
     private var isUserLeft: Bool {
         return otherUser["hasLeft"] as? Bool ?? false
     }
+    
+    // 이 채팅방이 차단된 상태인지 판단 (로컬 혹은 상위 UI에서 주입됨)
+    // 원칙적으로는 두 유저 중 한 명이라도 blockedUsers에 상대가 있으면 true
+    @State private var isBlocked: Bool = false
     
     // 검색 필터링된 메시지
     private var filteredMessages: [ChatMessage] {
@@ -43,15 +52,32 @@ struct ChatDetailView: View {
                     
                     Spacer()
                     
-                    Button(action: { 
-                        withAnimation {
-                            isSearching.toggle()
-                            if !isSearching { searchText = "" }
+                    HStack(spacing: 20) {
+                        Button(action: { 
+                            withAnimation {
+                                isSearching.toggle()
+                                if !isSearching { searchText = "" }
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 20))
                         }
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 20))
+                        
+                        // 차단 / 신고 메뉴
+                        Menu {
+                            Button(role: .destructive, action: { showBlockAlert = true }) {
+                                Label("Block User", systemImage: "nosign")
+                            }
+                            Button(role: .destructive, action: { showReportAlert = true }) {
+                                Label("Report User", systemImage: "exclamationmark.bubble")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 20))
+                                .rotationEffect(.degrees(90))
+                        }
                     }
+                    .foregroundColor(.primary)
                 }
                 .padding(.horizontal, 15)
                 
@@ -118,8 +144,24 @@ struct ChatDetailView: View {
                 .padding(.bottom, 20)
             }
             
-            // 입력창 (상대방이 나갔으면 비활성화)
-            if !isUserLeft {
+            // 입력창 (상대방이 나갔거나, 차단되었으면 비활성화)
+            if isBlocked {
+                // 차단되었을 때의 입력창 대체 UI
+                Text("Messaging has been blocked.")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.red.opacity(0.8))
+                    .padding(.vertical, 20)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(white: 0.98))
+            } else if isUserLeft {
+                // 나갔을 때의 입력창 대체 UI
+                Text("You cannot send messages to this user.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 20)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(white: 0.98))
+            } else {
                 HStack(spacing: 12) {
                     TextField("Type a message...", text: $messageText)
                         .padding(.horizontal, 15)
@@ -137,17 +179,30 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 15)
                 .padding(.vertical, 10)
                 .background(Color.white)
-            } else {
-                // 나갔을 때의 입력창 대체 UI
-                Text("You cannot send messages to this user.")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 20)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(white: 0.98))
             }
         }
         .navigationBarHidden(true)
+        .alert("Block User", isPresented: $showBlockAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Block", role: .destructive) {
+                blockUser()
+            }
+        } message: {
+            Text("Are you sure you want to block this user? They will no longer be able to message you.")
+        }
+        .alert("Report User", isPresented: $showReportAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Report", role: .destructive) {
+                reportUser()
+            }
+        } message: {
+            Text("Please report if this user violates our guidelines. The administrative team will review it within 24 hours.")
+        }
+        .alert("Report Submitted", isPresented: $showReportCompleteAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your report has been received and will be reviewed within 24 hours.")
+        }
     }
     
     private func sendMessage() {
@@ -156,6 +211,55 @@ struct ChatDetailView: View {
         messages.append(newMessage)
         onMessageSent?(messageText) // 목록 화면으로 마지막 메시지 전달
         messageText = ""
+    }
+    
+    // MARK: - Block & Report Logic
+    private func blockUser() {
+        guard let myUid = Auth.auth().currentUser?.uid,
+              let targetUid = otherUser["uid"] as? String else { 
+            // Mock data 처리 또는 uid가 없을 때 화면 내장 반영을 위해 dismiss 대신 isBlocked = true
+            withAnimation {
+                isBlocked = true
+            }
+            return 
+        }
+        
+        Firestore.firestore().collection("users").document(myUid).updateData([
+            "blockedUsers": FieldValue.arrayUnion([targetUid])
+        ]) { error in
+            if let error = error {
+                print("Error blocking user: \(error.localizedDescription)")
+            } else {
+                // 차단 성공 시 화면 안에서 즉시 차단 상태로 변경 (대화창 비활성화)
+                withAnimation {
+                    isBlocked = true
+                }
+            }
+            // 기존에는 dismiss()로 바로 나갔으나, 이제 화면 내장 반영을 위해 나가지 않게 함 (원할 경우 추가 가능)
+        }
+    }
+    
+    private func reportUser() {
+        guard let myUid = Auth.auth().currentUser?.uid,
+              let targetUid = otherUser["uid"] as? String else {
+            showReportCompleteAlert = true
+            return
+        }
+        
+        let reportData: [String: Any] = [
+            "reporterId": myUid,
+            "reportedId": targetUid,
+            "timestamp": FieldValue.serverTimestamp(),
+            "reason": "User reported from ChatDetailView"
+        ]
+        
+        Firestore.firestore().collection("reports").addDocument(data: reportData) { error in
+            if let error = error {
+                print("Error reporting user: \(error.localizedDescription)")
+            } else {
+                showReportCompleteAlert = true
+            }
+        }
     }
 }
 

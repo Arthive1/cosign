@@ -17,7 +17,7 @@ struct LoginView: View {
         NavigationStack {
             ZStack {
                 VStack(spacing: 25) {
-                    Text("Welcome Back")
+                    Text("Welcome to Co-sign")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
                         .padding(.top, 40)
@@ -56,6 +56,31 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 20)
                     .disabled(isLoading)
+                    
+                    HStack(spacing: 40) {
+                        Button(action: {
+                            // Find Email Action (To be implemented)
+                        }) {
+                            HStack {
+                                Image(systemName: "envelope.fill")
+                                Text("Find Email")
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.blue.opacity(0.5))
+                        }
+                        
+                        Button(action: {
+                            // Find Password Action (To be implemented)
+                        }) {
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                Text("Find Password")
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.blue.opacity(0.5))
+                        }
+                    }
+                    .padding(.top, 15)
                     
                     Spacer()
                 }
