@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyBPWZ1gl2oNveQoZA-R38oIpW3U0zswjlE</string>
+	<string>AIzaSyBUzLb7Lq5p-8RVNrSp57Y5nSJrPwcTKmc</string>
 	<key>GCM_SENDER_ID</key>
-	<string>165658361527</string>
+	<string>966548858915</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.cosign.cosign</string>
 	<key>PROJECT_ID</key>
-	<string>cosign-49d66</string>
+	<string>cosign-8a1b0</string>
 	<key>STORAGE_BUCKET</key>
-	<string>cosign-49d66.firebasestorage.app</string>
+	<string>cosign-8a1b0.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:165658361527:ios:b2b278c9148a6065c69732</string>
+	<string>1:966548858915:ios:95bdcd5c4a772618896996</string>
 </dict>
 </plist>

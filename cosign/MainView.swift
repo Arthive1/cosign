@@ -252,7 +252,7 @@ struct MainView: View {
                         showBilling.toggle()
                     }
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 20) { // 숫자와 아이콘 사이 여백을 버튼 간격(20)과 맞춤
                         Text("\(mySignBalance)")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(Color(red: 0.53, green: 0.75, blue: 0.94))
@@ -260,7 +260,7 @@ struct MainView: View {
                             .font(.system(size: 18, weight: .bold))
                     }
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary) // 회색에서 검정색 계열로 변경
                 
                 // 사람 아이콘 (프로필 수정)
                 Button(action: {
@@ -268,16 +268,18 @@ struct MainView: View {
                     showProfileSetup = true
                 }) {
                     Image(systemName: "person.fill")
+                        .font(.system(size: 18, weight: .bold))
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
                 
                 // 로그아웃 아이콘
                 Button(action: {
                     try? Auth.auth().signOut()
                 }) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 18, weight: .bold))
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
             }
             .font(.system(size: 20))
         }

@@ -110,6 +110,11 @@ struct ProfileSetupView: View {
     @State private var showEditConfirm: Bool = false
     @State private var showInsufficientSignsAlert: Bool = false
     
+    // 회원 탈퇴 팝업 관련 상태
+    @State private var showDeleteAccountAlert: Bool = false
+    @State private var deleteConfirmText: String = ""
+    @State private var showDeleteSuccessAlert: Bool = false
+    
     // 학교 검색 결과
     @State private var schoolSuggestions: [MKMapItem] = []
     @State private var isSearchingSchools: Bool = false
@@ -183,36 +188,56 @@ struct ProfileSetupView: View {
                     
                     Spacer()
                     
-                    // 최종 완료 버튼
-                    Button(action: {
-                        if headerTitle == "Change Profile" {
-                            // 수정된 내용이 있는지 확인
-                            if hasChanges {
-                                if mySignBalance >= 100 {
-                                    showEditConfirm = true
+                    VStack(spacing: 20) {
+                        // 회원 탈퇴 버튼
+                        Button(action: {
+                            deleteConfirmText = ""
+                            withAnimation {
+                                showDeleteAccountAlert = true
+                            }
+                        }) {
+                            Text("Delete Account")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(Color.orange)
+                                .cornerRadius(20)
+                                .shadow(color: Color.orange.opacity(0.3), radius: 10, x: 0, y: 5)
+                        }
+                        .disabled(isLoading)
+                        
+                        // 최종 완료 버튼
+                        Button(action: {
+                            if headerTitle == "Change Profile" {
+                                // 수정된 내용이 있는지 확인
+                                if hasChanges {
+                                    if mySignBalance >= 100 {
+                                        showEditConfirm = true
+                                    } else {
+                                        showInsufficientSignsAlert = true
+                                    }
                                 } else {
-                                    showInsufficientSignsAlert = true
+                                    // 변경사항이 없으면 저장을 건너뛰고 바로 닫기
+                                    dismiss()
                                 }
                             } else {
-                                // 변경사항이 없으면 저장을 건너뛰고 바로 닫기
-                                dismiss()
+                                // 신규 가입 후 초기 설정 모드 (Complete Your Profile)
+                                // 모든 항목이 완료되었든 일부만 되었든 초기 설정 중에는 팝업 없이 즉시 저장 (비용 발생 없음)
+                                handleFinalSave()
                             }
-                        } else {
-                            // 신규 가입 후 초기 설정 모드 (Complete Your Profile)
-                            // 모든 항목이 완료되었든 일부만 되었든 초기 설정 중에는 팝업 없이 즉시 저장 (비용 발생 없음)
-                            handleFinalSave()
+                        }) {
+                            Text("Finish Update")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                                .cornerRadius(20)
+                                .shadow(color: Color(red: 0.53, green: 0.75, blue: 0.94).opacity(0.3), radius: 10, x: 0, y: 5)
                         }
-                    }) {
-                        Text("Finish Update")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(Color(red: 0.53, green: 0.75, blue: 0.94))
-                            .cornerRadius(20)
-                            .shadow(color: Color(red: 0.53, green: 0.75, blue: 0.94).opacity(0.3), radius: 10, x: 0, y: 5)
+                        .disabled(isLoading)
                     }
-                    .disabled(isLoading)
                     .padding(.horizontal, 30)
                     .padding(.bottom, 30)
                 }
@@ -227,6 +252,8 @@ struct ProfileSetupView: View {
                 if showInitialConfirm { initialConfirmOverlay }
                 if showEditConfirm { editConfirmOverlay }
                 if showInsufficientSignsAlert { insufficientSignsOverlay }
+                if showDeleteAccountAlert { deleteAccountOverlay }
+                if showDeleteSuccessAlert { deleteSuccessOverlay }
             }
             .onAppear {
                 fetchExistingProfile()
@@ -1072,6 +1099,117 @@ struct ProfileSetupView: View {
         }
     }
     
+    // MARK: - Delete Account Overlays
+    private var deleteAccountOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            VStack(spacing: 20) {
+                VStack(spacing: 12) {
+                    Text("Confirm Deletion")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("All your information will be immediately deleted and cannot be recovered. If you wish to proceed, type \"Delete Account\" below.")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.top, 10)
+                
+                TextField("Delete Account", text: $deleteConfirmText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .autocapitalization(.none)
+                
+                HStack(spacing: 15) {
+                    Button(action: {
+                        withAnimation {
+                            showDeleteAccountAlert = false
+                        }
+                    }) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(white: 0.95))
+                            .cornerRadius(15)
+                    }
+                    
+                    Button(action: {
+                        if deleteConfirmText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "delete account" {
+                            withAnimation {
+                                showDeleteAccountAlert = false
+                                showDeleteSuccessAlert = true
+                            }
+                        }
+                    }) {
+                        Text("Delete Account")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(deleteConfirmText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "delete account" ? Color.orange : Color.gray)
+                            .cornerRadius(15)
+                    }
+                    .disabled(deleteConfirmText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != "delete account")
+                }
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+
+    private var deleteSuccessOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.green)
+                    .padding(.top, 10)
+                
+                Text("Account successfully deleted.")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                
+                Button(action: {
+                    executeDeleteAccount()
+                }) {
+                    Text("OK")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color(red: 0.53, green: 0.75, blue: 0.94))
+                        .cornerRadius(15)
+                }
+            }
+            .padding(30)
+            .background(Color.white)
+            .cornerRadius(25)
+            .shadow(radius: 20)
+            .padding(.horizontal, 40)
+        }
+    }
+
+    private func executeDeleteAccount() {
+        guard let user = Auth.auth().currentUser else { return }
+        isLoading = true
+        
+        Firestore.firestore().collection("users").document(user.uid).delete { _ in
+            user.delete { error in
+                isLoading = false
+                if let error = error {
+                    print("Error deleting user: \(error.localizedDescription)")
+                }
+                try? Auth.auth().signOut()
+                dismiss() // Close the profile view so it transitions smoothly to the root screen
+            }
+        }
+    }
+
     // MARK: - Helper Methods
     private func prepareEditing(_ section: SetupSection) {
         switch section {
